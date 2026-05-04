@@ -1,4 +1,4 @@
-//go:build linux
+//go:build darwin
 
 package scanner
 
@@ -9,7 +9,7 @@ import (
 
 func getAccessTime(sys any) time.Time {
 	if stat, ok := sys.(*syscall.Stat_t); ok {
-		return time.Unix(stat.Atim.Sec, stat.Atim.Nsec)
+		return time.Unix(stat.Atimespec.Sec, stat.Atimespec.Nsec)
 	}
 	return time.Time{}
 }

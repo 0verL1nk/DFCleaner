@@ -46,7 +46,7 @@ export function Settings() {
   async function handleTest() {
     setTestResult(null)
     try {
-      const result = await testConnection.mutateAsync(getFormConfig())
+      const result = await testConnection.mutateAsync(getFormConfig()) as any
       if (result.success) {
         setTestResult({ success: true, msg: result.noFunctionCalling ? t('settings.llm.noFc') : t('settings.llm.connected') })
       } else {
