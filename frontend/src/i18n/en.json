@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "DFCleaner"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "scanner": "Scanner",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Disk Overview",
+    "diskUsage": "Disk Usage",
+    "totalSpace": "Total Space",
+    "usedSpace": "Used",
+    "freeSpace": "Free",
+    "reclaimable": "Reclaimable",
+    "suggestedFree": "Suggested Free",
+    "afterAnalysis": "After AI analysis",
+    "lastCleanup": "Last Cleanup",
+    "quickScan": "Quick Scan",
+    "selectDirectory": "Select Directory",
+    "recentCleanups": "Recent Cleanups",
+    "noCleanups": "No cleanup history yet",
+    "noLLM": "No LLM configured",
+    "llmStatus": {
+      "connected": "LLM Connected",
+      "disconnected": "LLM Disconnected",
+      "checking": "Checking..."
+    }
+  },
+  "scanner": {
+    "scan": "Scan",
+    "scanning": "Scanning...",
+    "filesFound": "{{count}} files found",
+    "noFiles": "No files scanned yet",
+    "noData": "No scan data",
+    "selectDirectory": "Enter a path above to start scanning",
+    "root": "Root",
+    "name": "Name",
+    "size": "Size",
+    "modified": "Modified",
+    "risk": "Risk",
+    "cleanup": "Cleanup",
+    "confirmCleanup": "Confirm Cleanup",
+    "confirmCleanupDesc": "{{count}} items will be cleaned up. Choose an operation:",
+    "moveToTrash": "Move to Trash",
+    "permanentDelete": "Permanent Delete",
+    "sortBy": {
+      "name": "Name",
+      "size": "Size",
+      "modified": "Modified",
+      "risk": "Risk Level"
+    },
+    "analyzing": "AI analyzing...",
+    "drives": "Drives",
+    "quickTargets": "Quick Targets",
+    "risk": {
+      "safe": "Safe",
+      "caution": "Caution",
+      "dangerous": "Dangerous",
+      "error": "Analysis Error",
+      "none": "Not Analyzed"
+    },
+    "actions": {
+      "selectFiles": "Select files to clean",
+      "cleanSelected": "Clean Selected ({{count}})",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All"
+    },
+    "chat": {
+      "title": "AI Assistant",
+      "placeholder": "Ask about files or request cleanup...",
+      "thinking": "AI is thinking...",
+      "scanning": "Scanning {{path}}...",
+      "empty": "Ask the AI about your files"
+    }
+  },
+  "settings": {
+    "llm": {
+      "title": "LLM Configuration",
+      "provider": "Provider",
+      "endpoint": "API Endpoint",
+      "apiKey": "API Key",
+      "model": "Model Name",
+      "test": "Test Connection",
+      "testing": "Testing...",
+      "connected": "Connected! Function calling supported.",
+      "noFc": "Connected, but function calling not supported. Agent features may not work.",
+      "active": "Active"
+    },
+    "scan": {
+      "title": "Scan Preferences",
+      "contentPreview": "Send file content preview (first 1KB)",
+      "excludeDirs": "Exclude Directories",
+      "maxDepth": "Max Depth"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "contentPreviewDesc": "Enabling this sends file content to the LLM for more accurate analysis"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "language": "Language",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "cleanup": {
+    "title": "Confirm Cleanup",
+    "description": "The following {{count}} files will be moved to trash:",
+    "permanentDelete": "Permanently delete (cannot be recovered)",
+    "moveToTrash": "Move to Trash",
+    "moveTo": "Move to...",
+    "confirm": "Confirm Cleanup",
+    "cancel": "Cancel",
+    "permanentWarning": "Files will be permanently deleted and cannot be recovered!",
+    "progress": "Cleaning {{current}}/{{total}}...",
+    "complete": "Cleanup complete. {{freed}} freed.",
+    "partialFailure": "{{success}} succeeded, {{failed}} failed."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "bytes": "bytes",
+    "kb": "KB",
+    "mb": "MB",
+    "gb": "GB",
+    "tb": "TB"
+  }
+}

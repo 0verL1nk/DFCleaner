@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "DFCleaner"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "scanner": "扫描器",
+    "settings": "设置"
+  },
+  "dashboard": {
+    "title": "磁盘概览",
+    "diskUsage": "磁盘使用",
+    "totalSpace": "总空间",
+    "usedSpace": "已用",
+    "freeSpace": "可用",
+    "reclaimable": "可释放",
+    "suggestedFree": "建议释放",
+    "afterAnalysis": "AI 分析后",
+    "lastCleanup": "上次清理",
+    "quickScan": "快速扫描",
+    "selectDirectory": "选择目录",
+    "recentCleanups": "最近清理",
+    "noCleanups": "暂无清理记录",
+    "noLLM": "未配置大模型",
+    "llmStatus": {
+      "connected": "LLM 已连接",
+      "disconnected": "LLM 未连接",
+      "checking": "检查中..."
+    }
+  },
+  "scanner": {
+    "scan": "扫描",
+    "scanning": "扫描中...",
+    "filesFound": "已发现 {{count}} 个文件",
+    "noFiles": "尚未扫描文件",
+    "noData": "暂无扫描数据",
+    "selectDirectory": "在上方输入路径开始扫描",
+    "root": "根目录",
+    "name": "名称",
+    "size": "大小",
+    "modified": "修改时间",
+    "risk": "风险",
+    "cleanup": "清理",
+    "confirmCleanup": "确认清理",
+    "confirmCleanupDesc": "将清理 {{count}} 个项目，请选择操作：",
+    "moveToTrash": "移到回收站",
+    "permanentDelete": "永久删除",
+    "sortBy": {
+      "name": "名称",
+      "size": "大小",
+      "modified": "修改时间",
+      "risk": "风险等级"
+    },
+    "analyzing": "AI 分析中...",
+    "drives": "磁盘",
+    "quickTargets": "快速扫描",
+    "risk": {
+      "safe": "安全",
+      "caution": "需谨慎",
+      "dangerous": "不建议删除",
+      "error": "分析失败",
+      "none": "未分析"
+    },
+    "actions": {
+      "selectFiles": "选择要清理的文件",
+      "cleanSelected": "清理选中 ({{count}})",
+      "selectAll": "全选",
+      "deselectAll": "取消全选"
+    },
+    "chat": {
+      "title": "AI 助手",
+      "placeholder": "询问文件或请求清理...",
+      "thinking": "AI 思考中...",
+      "scanning": "正在扫描 {{path}}...",
+      "empty": "向 AI 询问你的文件"
+    }
+  },
+  "settings": {
+    "llm": {
+      "title": "LLM 配置",
+      "provider": "提供商",
+      "endpoint": "API 地址",
+      "apiKey": "API 密钥",
+      "model": "模型名称",
+      "test": "测试连接",
+      "testing": "测试中...",
+      "connected": "连接成功！支持函数调用。",
+      "noFc": "已连接，但不支持函数调用。Agent 功能可能无法正常工作。",
+      "active": "活跃"
+    },
+    "scan": {
+      "title": "扫描偏好",
+      "contentPreview": "发送文件内容片段（前 1KB）",
+      "excludeDirs": "排除目录",
+      "maxDepth": "最大深度"
+    },
+    "privacy": {
+      "title": "隐私",
+      "contentPreviewDesc": "启用后会将文件内容发送给 LLM 以获得更精准的分析"
+    },
+    "appearance": {
+      "title": "外观",
+      "theme": "主题",
+      "language": "语言",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    }
+  },
+  "cleanup": {
+    "title": "确认清理",
+    "description": "以下 {{count}} 个文件将被移至回收站：",
+    "permanentDelete": "永久删除（不可恢复）",
+    "moveToTrash": "移到回收站",
+    "moveTo": "移动到...",
+    "confirm": "确认清理",
+    "cancel": "取消",
+    "permanentWarning": "文件将被永久删除，无法恢复！",
+    "progress": "正在清理 {{current}}/{{total}}...",
+    "complete": "清理完成。释放了 {{freed}} 空间。",
+    "partialFailure": "{{success}} 个成功，{{failed}} 个失败。"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "retry": "重试",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "close": "关闭",
+    "bytes": "字节",
+    "kb": "KB",
+    "mb": "MB",
+    "gb": "GB",
+    "tb": "TB"
+  }
+}

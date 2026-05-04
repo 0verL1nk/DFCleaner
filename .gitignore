@@ -1,0 +1,52 @@
+# Build output
+build/bin/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/wailsjs/
+*.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Dev tools
+ws-proxy.cjs
+
+# Claude Code
+.claude/
+
+# OpenSpec / docs
+.omc/
+openspec/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
