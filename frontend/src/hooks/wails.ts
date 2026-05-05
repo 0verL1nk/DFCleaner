@@ -105,6 +105,13 @@ export function useCleanableItems(scanPath = '') {
   })
 }
 
+export function useCleanableSize(scanPath = '') {
+  return useQuery({
+    queryKey: ['cleanable-size', scanPath],
+    queryFn: () => App.GetCleanableSize(scanPath),
+  })
+}
+
 export function useClearCleanableItems() {
   const qc = useQueryClient()
   return useMutation({

@@ -25,6 +25,8 @@ export function GetActiveLLMConfig():Promise<llm.LLMConfig>;
 
 export function GetCleanableItems(arg1:string):Promise<Array<store.CleanableItemDB>>;
 
+export function GetCleanableSize(arg1:string):Promise<number>;
+
 export function GetLLMConfigs():Promise<Array<store.LLMConfig>>;
 
 export function GetQuickTargets():Promise<Array<platform.QuickTarget>>;

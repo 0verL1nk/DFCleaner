@@ -38,6 +38,10 @@ export function GetCleanableItems(arg1) {
   return window['go']['main']['App']['GetCleanableItems'](arg1);
 }
 
+export function GetCleanableSize(arg1) {
+  return window['go']['main']['App']['GetCleanableSize'](arg1);
+}
+
 export function GetLLMConfigs() {
   return window['go']['main']['App']['GetLLMConfigs']();
 }

@@ -134,6 +134,16 @@ func (s *Store) DeleteCleanableItem(path string) error {
 	return s.db.Where("path = ?", path).Delete(&CleanableItemDB{}).Error
 }
 
+func (s *Store) GetCleanableSize(scanPath string) int64 {
+	var total int64
+	q := s.db.Model(&CleanableItemDB{})
+	if scanPath != "" {
+		q = q.Where("scan_path = ?", scanPath)
+	}
+	q.Select("COALESCE(SUM(size), 0)").Scan(&total)
+	return total
+}
+
 func (s *Store) ClearCleanableItems(scanPath string) error {
 	if scanPath != "" {
 		return s.db.Where("scan_path = ?", scanPath).Delete(&CleanableItemDB{}).Error

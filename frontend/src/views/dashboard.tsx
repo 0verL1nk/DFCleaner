@@ -1,21 +1,19 @@
 import { useTranslation } from 'react-i18next'
-import { useRecentCleanups, useActiveLLMConfig } from '@/hooks/wails'
+import { useRecentCleanups, useActiveLLMConfig, useSystemDrives, useCleanableSize } from '@/hooks/wails'
 import { HardDrive, Clock, Zap, Trash2, Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
 
 export function Dashboard() {
   const { t } = useTranslation()
   const { data: cleanups } = useRecentCleanups(5)
   const { data: activeConfig, isError } = useActiveLLMConfig()
-  const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null)
+  const { data: drives } = useSystemDrives()
+  const { data: cleanableSize } = useCleanableSize()
 
-  useEffect(() => {
-    // Will be populated from scan results or Wails binding
-    // For now, show placeholders until a scan is run
-  }, [])
+  const rootDrive = drives?.find((d: any) => d.isSystem) || drives?.[0]
+  const totalFreed = cleanups?.reduce((sum: number, c: any) => sum + (c.freedBytes || 0), 0) ?? 0
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -36,19 +34,20 @@ export function Dashboard() {
         <StatCard
           icon={<HardDrive className="w-5 h-5" />}
           label={t('dashboard.diskUsage')}
-          value={diskInfo ? formatBytes(diskInfo.used) : '--'}
-          sub={diskInfo ? `${formatBytes(diskInfo.total)} total` : undefined}
+          value={rootDrive ? formatBytes(rootDrive.used) : '--'}
+          sub={rootDrive ? `${formatBytes(rootDrive.total)} total` : undefined}
         />
         <StatCard
           icon={<Zap className="w-5 h-5" />}
           label={t('dashboard.suggestedFree')}
-          value="--"
-          sub={t('dashboard.afterAnalysis')}
+          value={cleanableSize ? formatBytes(cleanableSize) : '--'}
+          sub={cleanableSize ? t('dashboard.afterAnalysis') : undefined}
         />
         <StatCard
           icon={<Clock className="w-5 h-5" />}
           label={t('dashboard.lastCleanup')}
           value={cleanups && cleanups.length > 0 ? timeAgo(cleanups[0].createdAt) : '--'}
+          sub={totalFreed > 0 ? `${formatBytes(totalFreed)} freed` : undefined}
         />
       </div>
 
@@ -109,14 +108,8 @@ function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: s
   )
 }
 
-interface DiskInfo {
-  total: number
-  used: number
-  available: number
-}
-
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (!bytes || bytes === 0) return '0 B'
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
@@ -125,9 +118,7 @@ function formatBytes(bytes: number): string {
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '--'
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
+  const diff = Date.now() - new Date(dateStr).getTime()
   if (diff < 60000) return 'just now'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`

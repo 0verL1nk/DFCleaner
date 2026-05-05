@@ -172,6 +172,10 @@ func (a *App) GetCleanableItems(scanPath string) []store.CleanableItemDB {
 	return a.store.GetCleanableItems(scanPath)
 }
 
+func (a *App) GetCleanableSize(scanPath string) int64 {
+	return a.store.GetCleanableSize(scanPath)
+}
+
 func (a *App) ClearCleanableItems(scanPath string) error {
 	return a.store.ClearCleanableItems(scanPath)
 }
