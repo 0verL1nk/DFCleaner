@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="build/appicon.svg" width="128" height="128" alt="DFCleaner Logo" />
+
 # DFCleaner
 
 **AI-Powered Cross-Platform Disk Cleanup Tool**
