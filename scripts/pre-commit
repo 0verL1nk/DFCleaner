@@ -1,0 +1,3 @@
+#!/bin/sh
+# Pre-commit hook: run make check before allowing commits
+make check
