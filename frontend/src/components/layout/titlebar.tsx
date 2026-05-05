@@ -17,14 +17,15 @@ export function Titlebar() {
   return (
     <div
       className="flex h-9 select-none items-center justify-between border-b border-border bg-background px-3"
+      style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
       onDoubleClick={handleDoubleClick}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" style={{ '--wails-draggable': 'drag' } as React.CSSProperties}>
         <Copy className="h-4 w-4 text-primary" />
         <span className="text-sm font-medium">DFCleaner</span>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <button
           onClick={WindowMinimise}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
