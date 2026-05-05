@@ -26,6 +26,26 @@ export interface AnalysisMark {
   error?: string
 }
 
+export interface CleanableItem {
+  path: string
+  name: string
+  size: number
+  isDir: boolean
+  riskLevel: string
+  reason: string
+  category: string
+}
+
+export type SmartScanPhase = 'idle' | 'scanning' | 'analyzing' | 'done'
+
+export interface SmartScanProgress {
+  phase: SmartScanPhase
+  filesScanned: number
+  filesAnalyzed: number
+  totalToAnalyze: number
+  itemsFound: number
+}
+
 interface ScannerState {
   scanning: boolean
   scanPath: string
@@ -39,6 +59,11 @@ interface ScannerState {
   currentPath: string
   breadcrumb: string[]
 
+  // Smart scan state
+  smartScanPhase: SmartScanPhase
+  smartScanProgress: SmartScanProgress
+  cleanableItems: CleanableItem[]
+
   setScanning: (v: boolean) => void
   setScanPath: (v: string) => void
   setScanResult: (result: { entries: FileEntry[]; totalFiles: number; totalDirs: number; totalSize: number; errors: ScanError[] }) => void
@@ -46,10 +71,26 @@ interface ScannerState {
   batchSetAnalysis: (map: Record<string, AnalysisMark>) => void
   toggleSelect: (path: string) => void
   selectAll: () => void
+  selectAllCleanable: () => void
   clearSelection: () => void
   drillDown: (path: string) => void
   navigateTo: (index: number) => void
   reset: () => void
+
+  // Smart scan actions
+  setSmartScanPhase: (phase: SmartScanPhase) => void
+  setSmartScanProgress: (progress: Partial<SmartScanProgress>) => void
+  addCleanableItems: (items: CleanableItem[]) => void
+  removeCleanableItem: (path: string) => void
+  resetSmartScan: () => void
+}
+
+const initialSmartScanProgress: SmartScanProgress = {
+  phase: 'idle',
+  filesScanned: 0,
+  filesAnalyzed: 0,
+  totalToAnalyze: 0,
+  itemsFound: 0,
 }
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
@@ -64,6 +105,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   selectedPaths: new Set(),
   currentPath: '',
   breadcrumb: [],
+
+  smartScanPhase: 'idle',
+  smartScanProgress: { ...initialSmartScanProgress },
+  cleanableItems: [],
 
   setScanning: (v) => set({ scanning: v }),
   setScanPath: (v) => set({ scanPath: v }),
@@ -86,6 +131,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     }),
   selectAll: () =>
     set((s) => ({ selectedPaths: new Set(s.entries.map((e) => e.path)) })),
+  selectAllCleanable: () =>
+    set((s) => ({ selectedPaths: new Set(s.cleanableItems.map((i) => i.path)) })),
   clearSelection: () => set({ selectedPaths: new Set() }),
   drillDown: (path) =>
     set((s) => ({
@@ -111,5 +158,34 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     selectedPaths: new Set(),
     currentPath: '',
     breadcrumb: [],
+    smartScanPhase: 'idle',
+    smartScanProgress: { ...initialSmartScanProgress },
+    cleanableItems: [],
+  }),
+
+  // Smart scan actions
+  setSmartScanPhase: (phase) => set({ smartScanPhase: phase }),
+  setSmartScanProgress: (progress) =>
+    set((s) => ({ smartScanProgress: { ...s.smartScanProgress, ...progress } })),
+  addCleanableItems: (items) =>
+    set((s) => {
+      const existing = new Set(s.cleanableItems.map((i) => i.path))
+      const newItems = items.filter((i) => !existing.has(i.path))
+      return { cleanableItems: [...s.cleanableItems, ...newItems] }
+    }),
+  removeCleanableItem: (path) =>
+    set((s) => {
+      const next = new Set(s.selectedPaths)
+      next.delete(path)
+      return {
+        cleanableItems: s.cleanableItems.filter((i) => i.path !== path),
+        selectedPaths: next,
+      }
+    }),
+  resetSmartScan: () => set({
+    smartScanPhase: 'idle',
+    smartScanProgress: { ...initialSmartScanProgress },
+    cleanableItems: [],
+    selectedPaths: new Set(),
   }),
 }))

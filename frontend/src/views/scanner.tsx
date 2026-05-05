@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useScannerStore, type FileEntry, type AnalysisMark, type RiskLevel } from '@/stores/scanner'
-import { useScan, useCleanup, useAnalyzeFiles, useSystemDrives, useQuickTargets } from '@/hooks/wails'
-import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, Sparkles, HardDrive, Download, Archive, File, Trash, Image } from 'lucide-react'
+import { useScannerStore, type CleanableItem, type RiskLevel } from '@/stores/scanner'
+import { useSmartScan, useCancelSmartScan, useCleanup, useSystemDrives, useQuickTargets } from '@/hooks/wails'
+import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, HardDrive, Download, Archive, File, Trash, Image, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-
-type SortKey = 'name' | 'size' | 'modTime' | 'riskLevel'
-type SortDir = 'asc' | 'desc'
 
 const targetIcons: Record<string, React.ReactNode> = {
   download: <Download className="w-4 h-4" />,
@@ -23,118 +20,77 @@ const targetIcons: Record<string, React.ReactNode> = {
 export function Scanner() {
   const { t } = useTranslation()
   const store = useScannerStore()
-  const { entries, breadcrumb, totalSize, scanning, selectedPaths, analysisMap, currentPath } = store
-  const scanMutation = useScan()
-  const analyzeMutation = useAnalyzeFiles()
+  const { cleanableItems, smartScanPhase, smartScanProgress, selectedPaths } = store
+  const smartScanMutation = useSmartScan()
+  const cancelSmartScan = useCancelSmartScan()
   const { data: drives } = useSystemDrives()
   const { data: quickTargets } = useQuickTargets()
-  const [sortKey, setSortKey] = useState<SortKey>('size')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [scanPath, setScanPath] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
   const cleanupMutation = useCleanup()
 
-  // Listen for AI analysis results
+  // Listen for smart scan events
   useEffect(() => {
-    let unsub: (() => void) | undefined
+    let unsubs: (() => void)[] = []
     ;(async () => {
       const { EventsOn } = await import('../../wailsjs/runtime/runtime')
-      unsub = EventsOn('analysis:complete', (results: any[]) => {
-        for (const r of results) {
-          if (!r.Error) {
-            useScannerStore.getState().setAnalysis(r.Path, {
-              riskLevel: r.RiskLevel as RiskLevel,
-              reason: r.Reason,
-              category: r.Category,
-              confidence: r.Confidence,
-            })
-          }
-        }
-        setAnalyzing(false)
+
+      const u1 = EventsOn('smartscan:progress', (p: any) => {
+        useScannerStore.getState().setSmartScanProgress(p)
+        useScannerStore.getState().setSmartScanPhase(p.phase || 'analyzing')
       })
-      EventsOn('analysis:error', () => {
-        setAnalyzing(false)
+      unsubs.push(u1)
+
+      const u2 = EventsOn('smartscan:items', (items: any[]) => {
+        useScannerStore.getState().addCleanableItems(items)
       })
+      unsubs.push(u2)
+
+      const u3 = EventsOn('smartscan:complete', () => {
+        useScannerStore.getState().setSmartScanPhase('done')
+      })
+      unsubs.push(u3)
+
+      const u4 = EventsOn('smartscan:error', (err: string) => {
+        useScannerStore.getState().setSmartScanPhase('done')
+        console.error('SmartScan error:', err)
+      })
+      unsubs.push(u4)
     })()
-    return () => { unsub?.() }
+    return () => { unsubs.forEach((u) => u()) }
   }, [])
 
-  const currentEntries = entries.filter((e) => {
-    const parent = e.path.substring(0, e.path.lastIndexOf('/'))
-    return parent === currentPath || (currentPath === '' && !e.path.includes('/'))
-  })
-
-  const sortedEntries = [...currentEntries].sort((a, b) => {
-    let cmp = 0
-    switch (sortKey) {
-      case 'name': cmp = a.name.localeCompare(b.name); break
-      case 'size': cmp = a.size - b.size; break
-      case 'modTime': cmp = a.modTime.localeCompare(b.modTime); break
-      case 'riskLevel':
-        const riskOrder: Record<string, number> = { dangerous: 3, caution: 2, safe: 1, '': 0 }
-        cmp = (riskOrder[analysisMap[a.path]?.riskLevel || ''] || 0) - (riskOrder[analysisMap[b.path]?.riskLevel || ''] || 0)
-        break
-    }
-    return sortDir === 'asc' ? cmp : -cmp
-  })
-
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortKey(key)
-      setSortDir('desc')
-    }
-  }
-
-  function startScan(path: string) {
+  const startSmartScan = useCallback((path: string) => {
     if (!path.trim()) return
     setScanPath(path)
-    store.reset()
-    store.setScanning(true)
+    store.resetSmartScan()
     store.setScanPath(path)
-    scanMutation.mutate(
+    store.setSmartScanPhase('scanning')
+    smartScanMutation.mutate(
       { path, opts: { maxDepth: 0, excludeDirs: [] } },
-      {
-        onSuccess: (result: any) => {
-          store.setScanResult({
-            entries: result.entries || [],
-            totalFiles: result.totalFiles || 0,
-            totalDirs: result.totalDirs || 0,
-            totalSize: result.totalSize || 0,
-            errors: result.errors || [],
-          })
-          if (result.entries?.length > 0) {
-            setAnalyzing(true)
-            analyzeMutation.mutate(result.entries, {
-              onError: () => setAnalyzing(false),
-            })
-          }
-        },
-        onError: () => store.setScanning(false),
-      },
+      { onError: () => store.setSmartScanPhase('done') },
     )
-  }
-
-  function handleDrillDown(entry: FileEntry) {
-    if (entry.isDir) {
-      store.drillDown(entry.path)
-    }
-  }
+  }, [smartScanMutation, store])
 
   function handleCleanup(operation: 'trash' | 'delete') {
     const items = Array.from(selectedPaths).map((path) => ({ path, operation }))
     cleanupMutation.mutate(items, {
       onSuccess: () => {
+        // Remove cleaned items from the list
+        selectedPaths.forEach((path) => {
+          useScannerStore.getState().removeCleanableItem(path)
+        })
         store.clearSelection()
         setConfirmOpen(false)
       },
     })
   }
 
-  const analyzedCount = Object.keys(analysisMap).length
-  const safeCount = Object.values(analysisMap).filter(a => a.riskLevel === 'safe').length
+  const isRunning = smartScanPhase === 'scanning' || smartScanPhase === 'analyzing'
+  const totalCleanableSize = cleanableItems.reduce((sum, i) => sum + i.size, 0)
+  const analyzePercent = smartScanProgress.totalToAnalyze > 0
+    ? Math.round((smartScanProgress.filesAnalyzed / smartScanProgress.totalToAnalyze) * 100)
+    : 0
 
   return (
     <div className="flex flex-col h-full">
@@ -145,28 +101,24 @@ export function Scanner() {
             placeholder="/path/to/scan"
             value={scanPath}
             onChange={(e) => setScanPath(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && startScan(scanPath)}
+            onKeyDown={(e) => e.key === 'Enter' && startSmartScan(scanPath)}
             className="flex-1 max-w-md"
           />
-          <Button onClick={() => startScan(scanPath)} disabled={scanning || !scanPath.trim()}>
-            {scanning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {t('scanner.scan')}
-          </Button>
+          {isRunning ? (
+            <Button variant="destructive" onClick={cancelSmartScan}>
+              <X className="w-4 h-4 mr-2" />
+              {t('common.cancel')}
+            </Button>
+          ) : (
+            <Button onClick={() => startSmartScan(scanPath)} disabled={!scanPath.trim()}>
+              {t('scanner.smartScan')}
+            </Button>
+          )}
 
-          {entries.length > 0 && (
+          {cleanableItems.length > 0 && (
             <div className="ml-auto flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{entries.length} items</span>
-              <span>{formatBytes(totalSize)}</span>
-              {analyzing && (
-                <Badge variant="secondary" className="animate-pulse">
-                  <Sparkles className="w-3 h-3 mr-1" /> {t('scanner.analyzing')}
-                </Badge>
-              )}
-              {!analyzing && analyzedCount > 0 && (
-                <Badge variant="secondary" className="text-safe">
-                  <ShieldCheck className="w-3 h-3 mr-1" /> {analyzedCount} analyzed, {safeCount} safe
-                </Badge>
-              )}
+              <span>{cleanableItems.length} {t('scanner.itemsToClean')}</span>
+              <span>{formatBytes(totalCleanableSize)}</span>
             </div>
           )}
         </div>
@@ -178,8 +130,9 @@ export function Scanner() {
             {drives.map((d: any) => (
               <button
                 key={d.path}
-                onClick={() => startScan(d.path)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-border hover:bg-accent transition-colors"
+                onClick={() => startSmartScan(d.path)}
+                disabled={isRunning}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-border hover:bg-accent transition-colors disabled:opacity-50"
               >
                 <HardDrive className="w-3 h-3" />
                 <span className="font-medium">{d.label || d.path}</span>
@@ -193,42 +146,59 @@ export function Scanner() {
         {quickTargets && quickTargets.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <span className="text-xs text-muted-foreground mr-1">{t('scanner.quickTargets')}:</span>
-            {quickTargets.map((t: any) => (
+            {quickTargets.map((qt: any) => (
               <button
-                key={t.path}
-                onClick={() => startScan(t.path)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-border hover:bg-accent transition-colors"
-                title={t.description}
+                key={qt.path}
+                onClick={() => startSmartScan(qt.path)}
+                disabled={isRunning}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-border hover:bg-accent transition-colors disabled:opacity-50"
+                title={qt.description}
               >
-                {targetIcons[t.icon] || <FolderOpen className="w-3 h-3" />}
-                <span>{t.label}</span>
+                {targetIcons[qt.icon] || <FolderOpen className="w-3 h-3" />}
+                <span>{qt.label}</span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Breadcrumb */}
-      {breadcrumb.length > 0 && (
-        <nav className="px-4 py-2 flex items-center gap-1 text-sm text-muted-foreground border-b border-border">
-          {breadcrumb.map((p, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <ChevronRight className="w-3 h-3" />}
-              <button
-                onClick={() => useScannerStore.getState().navigateTo(i)}
-                className="hover:text-foreground transition-colors"
-              >
-                {i === 0 ? t('scanner.root') : p.split('/').pop()}
-              </button>
-            </React.Fragment>
-          ))}
-        </nav>
+      {/* Progress bar */}
+      {isRunning && (
+        <div className="px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-3 mb-2">
+            {smartScanPhase === 'scanning' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-sm">{t('scanner.scanningFiles', { count: smartScanProgress.filesScanned || 0 })}</span>
+              </>
+            ) : (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-sm">
+                  {t('scanner.analyzingFiles', {
+                    current: smartScanProgress.filesAnalyzed,
+                    total: smartScanProgress.totalToAnalyze,
+                    found: smartScanProgress.itemsFound,
+                  })}
+                </span>
+              </>
+            )}
+          </div>
+          {smartScanPhase === 'analyzing' && (
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${analyzePercent}%` }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Action bar */}
       {selectedPaths.size > 0 && (
         <div className="px-4 py-2 flex items-center gap-3 bg-muted/50 border-b border-border">
-          <span className="text-sm">{selectedPaths.size} selected</span>
+          <span className="text-sm">{selectedPaths.size} {t('scanner.selected')}</span>
           <Button size="sm" onClick={() => setConfirmOpen(true)}>
             <Trash2 className="w-3 h-3 mr-1" />
             {t('scanner.cleanup')}
@@ -241,24 +211,19 @@ export function Scanner() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {entries.length === 0 ? (
+        {cleanableItems.length === 0 && !isRunning ? (
           <EmptyState />
-        ) : (
-          <FileTable
-            entries={sortedEntries}
-            analysisMap={analysisMap}
+        ) : cleanableItems.length > 0 ? (
+          <CleanableTable
+            items={cleanableItems}
             selectedPaths={selectedPaths}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onSort={handleSort}
             onToggleSelect={(path) => store.toggleSelect(path)}
             onSelectAll={() => {
-              if (selectedPaths.size === sortedEntries.length) store.clearSelection()
-              else sortedEntries.forEach((e) => { if (!selectedPaths.has(e.path)) store.toggleSelect(e.path) })
+              if (selectedPaths.size === cleanableItems.length) store.clearSelection()
+              else store.selectAllCleanable()
             }}
-            onDrillDown={handleDrillDown}
           />
-        )}
+        ) : null}
       </div>
 
       {/* Cleanup confirmation dialog */}
@@ -296,18 +261,11 @@ function EmptyState() {
   )
 }
 
-function FileTable({
-  entries, analysisMap, selectedPaths, sortKey, sortDir, onSort, onToggleSelect, onSelectAll, onDrillDown,
-}: {
-  entries: FileEntry[]
-  analysisMap: Record<string, AnalysisMark>
+function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
+  items: CleanableItem[]
   selectedPaths: Set<string>
-  sortKey: SortKey
-  sortDir: SortDir
-  onSort: (key: SortKey) => void
   onToggleSelect: (path: string) => void
   onSelectAll: () => void
-  onDrillDown: (entry: FileEntry) => void
 }) {
   const { t } = useTranslation()
   return (
@@ -316,34 +274,24 @@ function FileTable({
         <tr>
           <th className="w-10 px-3 py-2">
             <button onClick={onSelectAll}>
-              {selectedPaths.size === entries.length && entries.length > 0
+              {selectedPaths.size === items.length && items.length > 0
                 ? <CheckSquare className="w-4 h-4 text-primary" />
                 : <Square className="w-4 h-4 text-muted-foreground" />}
             </button>
           </th>
-          <th className="text-left px-3 py-2 cursor-pointer" onClick={() => onSort('name')}>
-            {t('scanner.name')} {sortKey === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
-          </th>
-          <th className="text-right px-3 py-2 cursor-pointer w-24" onClick={() => onSort('size')}>
-            {t('scanner.size')} {sortKey === 'size' && (sortDir === 'asc' ? '↑' : '↓')}
-          </th>
-          <th className="text-left px-3 py-2 cursor-pointer w-28" onClick={() => onSort('modTime')}>
-            {t('scanner.modified')} {sortKey === 'modTime' && (sortDir === 'asc' ? '↑' : '↓')}
-          </th>
-          <th className="text-left px-3 py-2 cursor-pointer w-32" onClick={() => onSort('riskLevel')}>
-            {t('scanner.risk')} {sortKey === 'riskLevel' && (sortDir === 'asc' ? '↑' : '↓')}
-          </th>
+          <th className="text-left px-3 py-2">{t('scanner.name')}</th>
+          <th className="text-right px-3 py-2 w-24">{t('scanner.size')}</th>
+          <th className="text-left px-3 py-2 w-32">{t('scanner.risk')}</th>
+          <th className="text-left px-3 py-2 w-40">{t('scanner.reason')}</th>
         </tr>
       </thead>
       <tbody>
-        {entries.map((entry) => (
-          <FileRow
-            key={entry.path}
-            entry={entry}
-            analysis={analysisMap[entry.path]}
-            selected={selectedPaths.has(entry.path)}
+        {items.map((item) => (
+          <CleanableRow
+            key={item.path}
+            item={item}
+            selected={selectedPaths.has(item.path)}
             onToggleSelect={onToggleSelect}
-            onDrillDown={onDrillDown}
           />
         ))}
       </tbody>
@@ -351,63 +299,57 @@ function FileTable({
   )
 }
 
-function FileRow({ entry, analysis, selected, onToggleSelect, onDrillDown }: {
-  entry: FileEntry
-  analysis?: AnalysisMark
+function CleanableRow({ item, selected, onToggleSelect }: {
+  item: CleanableItem
   selected: boolean
   onToggleSelect: (path: string) => void
-  onDrillDown: (entry: FileEntry) => void
 }) {
   return (
     <tr className={`border-b border-border hover:bg-muted/50 ${selected ? 'bg-primary/5' : ''}`}>
       <td className="px-3 py-2">
-        <button onClick={() => onToggleSelect(entry.path)}>
+        <button onClick={() => onToggleSelect(item.path)}>
           {selected
             ? <CheckSquare className="w-4 h-4 text-primary" />
             : <Square className="w-4 h-4 text-muted-foreground" />}
         </button>
       </td>
       <td className="px-3 py-2">
-        <button
-          onClick={() => onDrillDown(entry)}
-          className={`text-left ${entry.isDir ? 'text-primary font-medium' : ''}`}
-          disabled={!entry.isDir}
-        >
-          {entry.isDir ? '📁 ' : '📄 '}
-          {entry.name}
-        </button>
+        <div className="flex flex-col">
+          <span className={item.isDir ? 'text-primary font-medium' : ''}>
+            {item.isDir ? '📁 ' : '📄 '}
+            {item.name}
+          </span>
+          <span className="text-xs text-muted-foreground truncate max-w-xs" title={item.path}>
+            {item.path}
+          </span>
+        </div>
       </td>
       <td className="text-right px-3 py-2 text-muted-foreground">
-        {formatBytes(entry.size)}
-      </td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {entry.modTime ? new Date(entry.modTime).toLocaleDateString() : '--'}
+        {formatBytes(item.size)}
       </td>
       <td className="px-3 py-2">
-        {analysis ? <RiskBadge risk={analysis.riskLevel} reason={analysis.reason} /> : <span className="text-muted-foreground">--</span>}
+        <RiskBadge risk={item.riskLevel as RiskLevel} />
+      </td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">
+        <span className="line-clamp-2">{item.reason}</span>
       </td>
     </tr>
   )
 }
 
-function RiskBadge({ risk, reason }: { risk: RiskLevel; reason: string }) {
+function RiskBadge({ risk }: { risk: RiskLevel }) {
   const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
     safe: { icon: <ShieldCheck className="w-3 h-3" />, color: 'text-safe border-safe/30', label: 'Safe' },
     caution: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-caution border-caution/30', label: 'Caution' },
     dangerous: { icon: <ShieldAlert className="w-3 h-3" />, color: 'text-destructive border-destructive/30', label: 'Dangerous' },
   }
-  const c = config[risk] || config['']
+  const c = config[risk]
   if (!c) return null
 
   return (
-    <Tooltip>
-      <TooltipTrigger>
-        <Badge variant="outline" className={`${c.color} text-xs`}>
-          {c.icon} <span className="ml-1">{c.label}</span>
-        </Badge>
-      </TooltipTrigger>
-      {reason && <TooltipContent><p className="max-w-xs">{reason}</p></TooltipContent>}
-    </Tooltip>
+    <Badge variant="outline" className={`${c.color} text-xs`}>
+      {c.icon} <span className="ml-1">{c.label}</span>
+    </Badge>
   )
 }
 

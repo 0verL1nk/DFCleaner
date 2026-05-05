@@ -12,6 +12,8 @@ export function CancelAnalysis():Promise<void>;
 
 export function CancelScan():Promise<void>;
 
+export function CancelSmartScan():Promise<void>;
+
 export function Cleanup(arg1:Array<cleaner.CleanupItem>):Promise<Array<cleaner.CleanupResult>>;
 
 export function GetActiveLLMConfig():Promise<llm.LLMConfig>;
@@ -31,5 +33,7 @@ export function SaveLLMConfig(arg1:llm.LLMConfig):Promise<void>;
 export function Scan(arg1:string,arg2:scanner.ScanOptions):Promise<scanner.ScanResult>;
 
 export function SetSetting(arg1:string,arg2:string):Promise<void>;
+
+export function SmartScan(arg1:string,arg2:scanner.ScanOptions):Promise<void>;
 
 export function TestLLMConnection(arg1:llm.LLMConfig):Promise<llm.ConnectionTestResult>;

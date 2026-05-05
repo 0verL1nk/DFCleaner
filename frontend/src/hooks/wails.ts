@@ -73,6 +73,17 @@ export function useAnalyzeFiles() {
   })
 }
 
+export function useSmartScan() {
+  return useMutation({
+    mutationFn: ({ path, opts }: { path: string; opts: any }) =>
+      App.SmartScan(path, opts),
+  })
+}
+
+export function useCancelSmartScan() {
+  return () => App.CancelSmartScan()
+}
+
 export function useSystemDrives() {
   return useQuery({
     queryKey: ['system-drives'],

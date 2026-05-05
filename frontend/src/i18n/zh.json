@@ -30,7 +30,13 @@
   },
   "scanner": {
     "scan": "扫描",
+    "smartScan": "智能扫描",
     "scanning": "扫描中...",
+    "scanningFiles": "扫描中... 已发现 {{count}} 个文件",
+    "analyzingFiles": "分析 {{current}}/{{total}}... 发现 {{found}} 个可清理项",
+    "itemsToClean": "个可清理项",
+    "selected": "已选中",
+    "reason": "原因",
     "filesFound": "已发现 {{count}} 个文件",
     "noFiles": "尚未扫描文件",
     "noData": "暂无扫描数据",

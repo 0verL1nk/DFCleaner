@@ -30,7 +30,13 @@
   },
   "scanner": {
     "scan": "Scan",
+    "smartScan": "Smart Scan",
     "scanning": "Scanning...",
+    "scanningFiles": "Scanning... {{count}} files found",
+    "analyzingFiles": "Analyzing {{current}}/{{total}}... {{found}} items to clean",
+    "itemsToClean": "items to clean",
+    "selected": "selected",
+    "reason": "Reason",
     "filesFound": "{{count}} files found",
     "noFiles": "No files scanned yet",
     "noData": "No scan data",

@@ -14,6 +14,10 @@ export function CancelScan() {
   return window['go']['main']['App']['CancelScan']();
 }
 
+export function CancelSmartScan() {
+  return window['go']['main']['App']['CancelSmartScan']();
+}
+
 export function Cleanup(arg1) {
   return window['go']['main']['App']['Cleanup'](arg1);
 }
@@ -52,6 +56,10 @@ export function Scan(arg1, arg2) {
 
 export function SetSetting(arg1, arg2) {
   return window['go']['main']['App']['SetSetting'](arg1, arg2);
+}
+
+export function SmartScan(arg1, arg2) {
+  return window['go']['main']['App']['SmartScan'](arg1, arg2);
 }
 
 export function TestLLMConnection(arg1) {

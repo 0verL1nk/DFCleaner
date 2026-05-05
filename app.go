@@ -25,6 +25,8 @@ type App struct {
 	llm      *llm.Provider
 	logger   *log.Logger
 	logFile  *os.File
+
+	smartScanCancel context.CancelFunc
 }
 
 func NewApp() *App {
@@ -34,7 +36,6 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Set up file logging
 	execPath, _ := os.Executable()
 	logDir := filepath.Join(filepath.Dir(execPath), "logs")
 	os.MkdirAll(logDir, 0755)
