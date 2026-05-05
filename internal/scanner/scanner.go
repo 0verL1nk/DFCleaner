@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,20 +14,45 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// DefaultExcludeDirs are directories that should be skipped on all platforms.
+var DefaultExcludeDirs = []string{
+	"System Volume Information",
+	"$RECYCLE.BIN",
+	"Windows",
+	"ProgramData",
+	"System32",
+	"Recovery",
+	".git",
+	".svn",
+	"node_modules",
+	".Trash",
+}
+
 type Scanner struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	filesScanned atomic.Int64
 	dirsScanned  atomic.Int64
 	totalSize    atomic.Int64
+	logger       *log.Logger
 }
 
 func New(ctx context.Context) *Scanner {
-	return &Scanner{ctx: ctx}
+	return &Scanner{
+		logger: log.New(os.Stderr, "[scanner] ", log.LstdFlags|log.Lshortfile),
+	}
 }
 
-func (s *Scanner) Scan(root string, opts ScanOptions) (*ScanResult, error) {
+func (s *Scanner) Scan(root string, opts ScanOptions) (result *ScanResult, err error) {
 	start := time.Now()
+
+	// Panic recovery for the entire scan
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Printf("panic during scan of %s: %v", root, r)
+			err = fmt.Errorf("scan panicked: %v", r)
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.cancel = cancel
@@ -39,12 +66,15 @@ func (s *Scanner) Scan(root string, opts ScanOptions) (*ScanResult, error) {
 		opts.MaxDepth = 50
 	}
 
-	excludeSet := make(map[string]bool, len(opts.ExcludeDirs))
+	excludeSet := make(map[string]bool, len(opts.ExcludeDirs)+len(DefaultExcludeDirs))
 	for _, d := range opts.ExcludeDirs {
 		excludeSet[strings.ToLower(d)] = true
 	}
+	for _, d := range DefaultExcludeDirs {
+		excludeSet[strings.ToLower(d)] = true
+	}
 
-	result := &ScanResult{Root: root}
+	result = &ScanResult{Root: root}
 
 	chunkBuf := make([]FileEntry, 0, 500)
 	var mu sync.Mutex
@@ -54,14 +84,22 @@ func (s *Scanner) Scan(root string, opts ScanOptions) (*ScanResult, error) {
 
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
-		go func() {
+		go func(id int) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					s.logger.Printf("worker %d panic: %v", id, r)
+				}
+			}()
 			for path := range paths {
 				if ctx.Err() != nil {
 					return
 				}
 				entries, err := s.readDir(path)
 				if err != nil {
+					if os.IsPermission(err) {
+						continue
+					}
 					mu.Lock()
 					result.Errors = append(result.Errors, FileEntry{
 						Path:  path,
@@ -95,7 +133,7 @@ func (s *Scanner) Scan(root string, opts ScanOptions) (*ScanResult, error) {
 					}
 				}
 			}
-		}()
+		}(i)
 	}
 
 	s.dirsScanned.Add(1)
@@ -122,17 +160,23 @@ func (s *Scanner) Scan(root string, opts ScanOptions) (*ScanResult, error) {
 	return result, nil
 }
 
-func (s *Scanner) readDir(path string) ([]FileEntry, error) {
-	entries, err := os.ReadDir(path)
+func (s *Scanner) readDir(path string) (entries []FileEntry, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Printf("panic reading %s: %v", path, r)
+			err = fmt.Errorf("readDir panic: %v", r)
+		}
+	}()
+
+	dirEntries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []FileEntry
-	for _, de := range entries {
+	for _, de := range dirEntries {
 		info, err := de.Info()
 		if err != nil {
-			result = append(result, FileEntry{
+			entries = append(entries, FileEntry{
 				Path:  filepath.Join(path, de.Name()),
 				Name:  de.Name(),
 				Error: err.Error(),
@@ -162,9 +206,9 @@ func (s *Scanner) readDir(path string) ([]FileEntry, error) {
 			s.totalSize.Add(info.Size())
 		}
 
-		result = append(result, entry)
+		entries = append(entries, entry)
 	}
-	return result, nil
+	return entries, nil
 }
 
 func (s *Scanner) progress(current string) ScanProgress {
