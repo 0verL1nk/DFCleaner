@@ -85,7 +85,7 @@ func (a *Analyzer) getOrCreateAgent() (*react.Agent, error) {
 		return a.agent, nil
 	}
 
-	_, err := a.llm.GetActiveModel(a.ctx)
+	chatModel, err := a.llm.GetActiveModel(a.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get active LLM model: %w", err)
 	}
@@ -104,6 +104,7 @@ func (a *Analyzer) getOrCreateAgent() (*react.Agent, error) {
 	systemPrompt := a.buildSystemPrompt()
 
 	agentCfg := &react.AgentConfig{
+		Model:           chatModel,
 		ToolsConfig:     toolsConfig,
 		MessageModifier: react.NewPersonaModifier(systemPrompt),
 		MaxStep:         0, // no limit
