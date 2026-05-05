@@ -68,7 +68,9 @@ jobs:
       # Build NSIS installer (Windows only)
       - name: Install NSIS
         if: matrix.platform == 'windows'
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
 
       - name: Build NSIS installer (Windows)
         if: matrix.platform == 'windows'
