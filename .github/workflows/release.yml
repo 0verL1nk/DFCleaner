@@ -46,32 +46,30 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      # Build portable version
       - name: Build
         run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41
         env:
           CGO_ENABLED: 1
 
-      # Portable builds: just zip/tar the binary
       - name: Package portable (Linux)
         if: matrix.platform == 'linux'
-        run: |
-          cd build/bin
-          tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz dfcleaner
+        run: cd build/bin && tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz dfcleaner
 
       - name: Package portable (macOS)
         if: matrix.platform == 'darwin'
-        run: |
-          cd build/bin
-          tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz DFCleaner.app
+        run: cd build/bin && tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz DFCleaner.app
 
       - name: Package portable (Windows)
         if: matrix.platform == 'windows'
-        run: |
-          cd build/bin
-          Compress-Archive -Path DFCleaner.exe -DestinationPath DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.zip
+        run: cd build/bin && Compress-Archive -Path DFCleaner.exe -DestinationPath DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.zip
         shell: pwsh
 
-      # Installer builds: NSIS for Windows, .app for macOS is already a bundle
+      # Build NSIS installer (Windows only)
+      - name: Install NSIS
+        if: matrix.platform == 'windows'
+        run: choco install nsis -y
+
       - name: Build NSIS installer (Windows)
         if: matrix.platform == 'windows'
         run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41 -nsis
