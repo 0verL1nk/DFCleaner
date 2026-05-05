@@ -99,6 +99,7 @@ jobs:
           path: |
             build/bin/*-portable.*
             build/bin/*-installer.*
+            build/bin/*.dmg
 
   release:
     needs: build

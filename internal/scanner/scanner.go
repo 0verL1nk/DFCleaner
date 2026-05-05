@@ -39,6 +39,7 @@ type Scanner struct {
 
 func New(ctx context.Context) *Scanner {
 	return &Scanner{
+		ctx:    ctx,
 		logger: log.New(os.Stderr, "[scanner] ", log.LstdFlags|log.Lshortfile),
 	}
 }
