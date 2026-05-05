@@ -7,6 +7,7 @@ import './style.css'
 import { router } from './routes/router'
 import { useSettingsStore } from './stores/settings'
 import { useSettings } from './hooks/wails'
+import { Toaster } from './components/ui/sonner'
 
 const queryClient = new QueryClient()
 
@@ -40,6 +41,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   )
 }

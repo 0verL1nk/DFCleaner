@@ -88,9 +88,6 @@ export function Scanner() {
 
   const isRunning = smartScanPhase === 'scanning' || smartScanPhase === 'analyzing'
   const totalCleanableSize = cleanableItems.reduce((sum, i) => sum + i.size, 0)
-  const analyzePercent = smartScanProgress.totalToAnalyze > 0
-    ? Math.round((smartScanProgress.filesAnalyzed / smartScanProgress.totalToAnalyze) * 100)
-    : 0
 
   return (
     <div className="flex flex-col h-full">
@@ -162,35 +159,20 @@ export function Scanner() {
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Progress */}
       {isRunning && (
         <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-3 mb-2">
-            {smartScanPhase === 'scanning' ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-sm">{t('scanner.scanningFiles', { count: smartScanProgress.filesScanned || 0 })}</span>
-              </>
-            ) : (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-sm">
-                  {t('scanner.analyzingFiles', {
-                    current: smartScanProgress.filesAnalyzed,
-                    total: smartScanProgress.totalToAnalyze,
-                    found: smartScanProgress.itemsFound,
-                  })}
-                </span>
-              </>
-            )}
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span className="text-sm">
+              {t('scanner.agentExploring', {
+                dirs: smartScanProgress.dirsExplored || 0,
+                found: smartScanProgress.itemsFound || 0,
+              })}
+            </span>
           </div>
-          {smartScanPhase === 'analyzing' && (
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${analyzePercent}%` }}
-              />
-            </div>
+          {smartScanProgress.currentAction && (
+            <p className="text-xs text-muted-foreground mt-1">{smartScanProgress.currentAction}</p>
           )}
         </div>
       )}
@@ -281,7 +263,7 @@ function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
           </th>
           <th className="text-left px-3 py-2">{t('scanner.name')}</th>
           <th className="text-right px-3 py-2 w-24">{t('scanner.size')}</th>
-          <th className="text-left px-3 py-2 w-32">{t('scanner.risk')}</th>
+          <th className="text-left px-3 py-2 w-32">{t('scanner.riskLevel')}</th>
           <th className="text-left px-3 py-2 w-40">{t('scanner.reason')}</th>
         </tr>
       </thead>

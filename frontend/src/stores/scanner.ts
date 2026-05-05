@@ -40,10 +40,9 @@ export type SmartScanPhase = 'idle' | 'scanning' | 'analyzing' | 'done'
 
 export interface SmartScanProgress {
   phase: SmartScanPhase
-  filesScanned: number
-  filesAnalyzed: number
-  totalToAnalyze: number
+  dirsExplored: number
   itemsFound: number
+  currentAction: string
 }
 
 interface ScannerState {
@@ -87,10 +86,9 @@ interface ScannerState {
 
 const initialSmartScanProgress: SmartScanProgress = {
   phase: 'idle',
-  filesScanned: 0,
-  filesAnalyzed: 0,
-  totalToAnalyze: 0,
+  dirsExplored: 0,
   itemsFound: 0,
+  currentAction: '',
 }
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
