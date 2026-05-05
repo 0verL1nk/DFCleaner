@@ -51,32 +51,40 @@ jobs:
         env:
           CGO_ENABLED: 1
 
-      - name: Package (Linux)
+      # Portable builds: just zip/tar the binary
+      - name: Package portable (Linux)
         if: matrix.platform == 'linux'
         run: |
           cd build/bin
-          tar czf dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz dfcleaner
+          tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz dfcleaner
 
-      - name: Package (macOS)
+      - name: Package portable (macOS)
         if: matrix.platform == 'darwin'
         run: |
           cd build/bin
-          tar czf dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz DFCleaner.app
+          tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz DFCleaner.app
 
-      - name: Package (Windows)
+      - name: Package portable (Windows)
         if: matrix.platform == 'windows'
         run: |
           cd build/bin
-          Compress-Archive -Path DFCleaner.exe -DestinationPath dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.zip
+          Compress-Archive -Path DFCleaner.exe -DestinationPath DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.zip
         shell: pwsh
 
-      - name: Upload artifact
+      # Installer builds: NSIS for Windows, .app for macOS is already a bundle
+      - name: Build NSIS installer (Windows)
+        if: matrix.platform == 'windows'
+        run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41 -nsis
+        env:
+          CGO_ENABLED: 1
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            build/bin/*.tar.gz
-            build/bin/*.zip
+            build/bin/*-portable.*
+            build/bin/*-installer.*
 
   release:
     needs: build
