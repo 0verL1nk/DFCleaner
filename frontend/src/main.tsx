@@ -7,7 +7,8 @@ import './style.css'
 import { router } from './routes/router'
 import { useSettingsStore } from './stores/settings'
 import { useSettings } from './hooks/wails'
-import { Toaster } from './components/ui/sonner'
+import { Toaster, toast } from './components/ui/sonner'
+import * as AppBackend from '../wailsjs/go/main/App'
 
 const queryClient = new QueryClient()
 
@@ -36,10 +37,32 @@ function ThemeSync() {
   return null
 }
 
+function UpdateChecker() {
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const result = await AppBackend.CheckForUpdate() as any
+        if (result?.hasUpdate) {
+          toast.info(`New version ${result.latestVer} available!`, {
+            description: 'Visit Settings to download.',
+            duration: 8000,
+          })
+        }
+      } catch {
+        // silently ignore
+      }
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  return null
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
+      <UpdateChecker />
       <RouterProvider router={router} />
       <Toaster />
     </QueryClientProvider>
