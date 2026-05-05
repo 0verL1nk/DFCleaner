@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
-import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting } from '@/hooks/wails'
+import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate } from '@/hooks/wails'
 import * as App from '../../wailsjs/go/main/App'
 import { useSettingsStore } from '@/stores/settings'
-import { Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -198,8 +198,53 @@ export function Settings() {
         </div>
       </section>
 
-      {version && (
-        <p className="text-xs text-muted-foreground text-center pt-4">DFCleaner {version}</p>
+      {/* About */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">DFCleaner {version}</p>
+            <UpdateChecker />
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function UpdateChecker() {
+  const { t } = useTranslation()
+  const checkUpdate = useCheckForUpdate()
+  const [updateInfo, setUpdateInfo] = useState<{ hasUpdate: boolean; latestVer: string; downloadUrl: string } | null>(null)
+
+  async function handleCheck() {
+    setUpdateInfo(null)
+    try {
+      const result = await checkUpdate.mutateAsync() as any
+      setUpdateInfo({ hasUpdate: result.hasUpdate, latestVer: result.latestVer, downloadUrl: result.downloadUrl })
+    } catch {
+      setUpdateInfo(null)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <Button size="sm" variant="ghost" onClick={handleCheck} disabled={checkUpdate.isPending}>
+        {checkUpdate.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+        {t('settings.about.checkUpdate', 'Check for Updates')}
+      </Button>
+      {updateInfo && updateInfo.hasUpdate && (
+        <a
+          href={updateInfo.downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <ExternalLink className="w-3 h-3" />
+          v{updateInfo.latestVer} available
+        </a>
+      )}
+      {updateInfo && !updateInfo.hasUpdate && (
+        <span className="text-xs text-muted-foreground">{t('settings.about.upToDate', 'Up to date')}</span>
       )}
     </div>
   )

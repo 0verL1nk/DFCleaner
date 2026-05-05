@@ -112,3 +112,9 @@ export function useClearCleanableItems() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cleanable-items'] }),
   })
 }
+
+export function useCheckForUpdate() {
+  return useMutation({
+    mutationFn: () => App.CheckForUpdate(),
+  })
+}

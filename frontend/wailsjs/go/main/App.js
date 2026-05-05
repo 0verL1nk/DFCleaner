@@ -18,6 +18,10 @@ export function CancelSmartScan() {
   return window['go']['main']['App']['CancelSmartScan']();
 }
 
+export function CheckForUpdate() {
+  return window['go']['main']['App']['CheckForUpdate']();
+}
+
 export function Cleanup(arg1) {
   return window['go']['main']['App']['Cleanup'](arg1);
 }

@@ -212,6 +212,12 @@ func (a *App) runSmartScan(ctx context.Context, rootPath string) {
 		}
 
 		for _, tc := range chunk.ToolCalls {
+			// Skip incremental streaming chunks (empty tool name = continuation of previous call)
+			if tc.Function.Name == "" {
+				a.logger.Printf("[SmartScan] stream chunk continuation: args_part=%s", tc.Function.Arguments)
+				continue
+			}
+
 			stepCount++
 			mu.Lock()
 			if tc.Function.Name == "scan_directory" {
@@ -229,8 +235,8 @@ func (a *App) runSmartScan(ctx context.Context, rootPath string) {
 				}
 			}
 
-			a.logger.Printf("[SmartScan] step #%d: tool=%s args_len=%d action=%s dirs=%d items=%d",
-				stepCount, tc.Function.Name, len(tc.Function.Arguments), action, de, ifound)
+			a.logger.Printf("[SmartScan] step #%d: tool=%s args=%s dirs=%d items=%d",
+				stepCount, tc.Function.Name, tc.Function.Arguments, de, ifound)
 
 			wailsrt.EventsEmit(a.ctx, "smartscan:progress", map[string]any{
 				"phase":         "analyzing",

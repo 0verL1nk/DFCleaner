@@ -232,6 +232,10 @@ func (s *Scanner) toolScanDirectory(ctx context.Context, input *ScanDirInput) (*
 		input.MaxDepth = 2
 	}
 
+	if input.Path == "" {
+		return nil, fmt.Errorf("path is required. Please provide a directory path to scan.")
+	}
+
 	entries, err := os.ReadDir(input.Path)
 	if err != nil {
 		return nil, err
