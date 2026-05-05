@@ -60,6 +60,19 @@ jobs:
         if: matrix.platform == 'darwin'
         run: cd build/bin && tar czf DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.tar.gz DFCleaner.app
 
+      - name: Build DMG (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          brew install create-dmg
+          create-dmg \
+            --volname "DFCleaner" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --app-drop-link 400 185 \
+            "build/bin/DFCleaner-darwin-arm64.dmg" \
+            "build/bin/DFCleaner.app"
+
       - name: Package portable (Windows)
         if: matrix.platform == 'windows'
         run: cd build/bin && Compress-Archive -Path DFCleaner.exe -DestinationPath DFCleaner-${{ matrix.platform }}-${{ matrix.arch }}-portable.zip
