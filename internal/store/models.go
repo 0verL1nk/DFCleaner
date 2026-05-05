@@ -43,3 +43,16 @@ type UserSetting struct {
 	Value     string    `gorm:"not null" json:"value"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
+
+type CleanableItemDB struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Path      string    `gorm:"uniqueIndex;not null" json:"path"`
+	Name      string    `gorm:"not null" json:"name"`
+	Size      int64     `gorm:"default:0" json:"size"`
+	IsDir     bool      `gorm:"default:false" json:"isDir"`
+	RiskLevel string    `gorm:"not null" json:"riskLevel"`
+	Reason    string    `json:"reason"`
+	Category  string    `json:"category"`
+	ScanPath  string    `gorm:"index;not null" json:"scanPath"`
+	CreatedAt time.Time `json:"createdAt"`
+}

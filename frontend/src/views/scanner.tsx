@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useScannerStore, type CleanableItem, type RiskLevel } from '@/stores/scanner'
-import { useSmartScan, useCancelSmartScan, useCleanup, useSystemDrives, useQuickTargets } from '@/hooks/wails'
+import { useSmartScan, useCancelSmartScan, useCleanup, useSystemDrives, useQuickTargets, useCleanableItems, useClearCleanableItems } from '@/hooks/wails'
 import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, HardDrive, Download, Archive, File, Trash, Image, X, FolderSearch, Sparkles, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,23 @@ export function Scanner() {
   const [scanPath, setScanPath] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const cleanupMutation = useCleanup()
+
+  // Load cached cleanable items from DB on mount
+  const { data: cachedItems } = useCleanableItems()
+  useEffect(() => {
+    if (cachedItems && cachedItems.length > 0 && cleanableItems.length === 0) {
+      const items: CleanableItem[] = cachedItems.map((item: any) => ({
+        path: item.path,
+        name: item.name,
+        size: item.size,
+        isDir: item.isDir,
+        riskLevel: item.riskLevel,
+        reason: item.reason,
+        category: item.category,
+      }))
+      store.addCleanableItems(items)
+    }
+  }, [cachedItems])
 
   // Listen for smart scan events
   useEffect(() => {
@@ -63,9 +80,10 @@ export function Scanner() {
   const startSmartScan = useCallback((path: string) => {
     if (!path.trim()) return
     setScanPath(path)
-    store.resetSmartScan()
-    store.setScanPath(path)
+    // Only reset progress, keep existing cleanable items (accumulate across scans)
     store.setSmartScanPhase('scanning')
+    store.setSmartScanProgress({ dirsExplored: 0, itemsFound: 0, currentAction: '' })
+    store.clearSelection()
     smartScanMutation.mutate(
       { path, opts: { maxDepth: 0, excludeDirs: [] } },
       { onError: () => store.setSmartScanPhase('done') },

@@ -31,6 +31,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		&ScanHistory{},
 		&CleanupLog{},
 		&UserSetting{},
+		&CleanableItemDB{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
@@ -111,4 +112,31 @@ func (s *Store) GetRecentCleanups(limit int) []CleanupLog {
 	var logs []CleanupLog
 	s.db.Order("created_at DESC").Limit(limit).Find(&logs)
 	return logs
+}
+
+// --- Cleanable Items ---
+
+func (s *Store) SaveCleanableItem(item *CleanableItemDB) error {
+	return s.db.Save(item).Error
+}
+
+func (s *Store) GetCleanableItems(scanPath string) []CleanableItemDB {
+	var items []CleanableItemDB
+	if scanPath != "" {
+		s.db.Where("scan_path = ?", scanPath).Order("created_at DESC").Find(&items)
+	} else {
+		s.db.Order("created_at DESC").Find(&items)
+	}
+	return items
+}
+
+func (s *Store) DeleteCleanableItem(path string) error {
+	return s.db.Where("path = ?", path).Delete(&CleanableItemDB{}).Error
+}
+
+func (s *Store) ClearCleanableItems(scanPath string) error {
+	if scanPath != "" {
+		return s.db.Where("scan_path = ?", scanPath).Delete(&CleanableItemDB{}).Error
+	}
+	return s.db.Exec("DELETE FROM cleanable_item_d_bs").Error
 }

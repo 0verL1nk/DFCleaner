@@ -22,8 +22,16 @@ export function Cleanup(arg1) {
   return window['go']['main']['App']['Cleanup'](arg1);
 }
 
+export function ClearCleanableItems(arg1) {
+  return window['go']['main']['App']['ClearCleanableItems'](arg1);
+}
+
 export function GetActiveLLMConfig() {
   return window['go']['main']['App']['GetActiveLLMConfig']();
+}
+
+export function GetCleanableItems(arg1) {
+  return window['go']['main']['App']['GetCleanableItems'](arg1);
 }
 
 export function GetLLMConfigs() {

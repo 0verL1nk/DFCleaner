@@ -97,3 +97,18 @@ export function useQuickTargets() {
     queryFn: () => App.GetQuickTargets(),
   })
 }
+
+export function useCleanableItems(scanPath = '') {
+  return useQuery({
+    queryKey: ['cleanable-items', scanPath],
+    queryFn: () => App.GetCleanableItems(scanPath),
+  })
+}
+
+export function useClearCleanableItems() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scanPath: string) => App.ClearCleanableItems(scanPath),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cleanable-items'] }),
+  })
+}

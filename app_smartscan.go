@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"dfcleaner/internal/scanner"
+	"dfcleaner/internal/store"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -92,6 +93,20 @@ func (a *App) runSmartScan(ctx context.Context, rootPath string) {
 
 			a.logger.Printf("[SmartScan] mark_cleanable #%d: name=%s path=%s size=%d risk=%s category=%s reason=%q",
 				count, input.Name, input.Path, input.Size, input.RiskLevel, input.Category, input.Reason)
+
+			// Persist to database
+			if a.store != nil {
+				a.store.SaveCleanableItem(&store.CleanableItemDB{
+					Path:      input.Path,
+					Name:      input.Name,
+					Size:      input.Size,
+					IsDir:     input.IsDir,
+					RiskLevel: input.RiskLevel,
+					Reason:    input.Reason,
+					Category:  input.Category,
+					ScanPath:  rootPath,
+				})
+			}
 
 			wailsrt.EventsEmit(a.ctx, "smartscan:items", []map[string]any{{
 				"path":      input.Path,

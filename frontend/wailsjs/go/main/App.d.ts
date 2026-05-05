@@ -16,7 +16,11 @@ export function CancelSmartScan():Promise<void>;
 
 export function Cleanup(arg1:Array<cleaner.CleanupItem>):Promise<Array<cleaner.CleanupResult>>;
 
+export function ClearCleanableItems(arg1:string):Promise<void>;
+
 export function GetActiveLLMConfig():Promise<llm.LLMConfig>;
+
+export function GetCleanableItems(arg1:string):Promise<Array<store.CleanableItemDB>>;
 
 export function GetLLMConfigs():Promise<Array<store.LLMConfig>>;
 
