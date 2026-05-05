@@ -51,11 +51,32 @@ jobs:
         env:
           CGO_ENABLED: 1
 
+      - name: Package (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          cd build/bin
+          tar czf dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz dfcleaner
+
+      - name: Package (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          cd build/bin
+          tar czf dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz DFCleaner.app
+
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          cd build/bin
+          Compress-Archive -Path DFCleaner.exe -DestinationPath dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}.zip
+        shell: pwsh
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: dfcleaner-${{ matrix.platform }}-${{ matrix.arch }}
-          path: build/bin/*
+          path: |
+            build/bin/*.tar.gz
+            build/bin/*.zip
 
   release:
     needs: build
