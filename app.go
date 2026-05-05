@@ -30,6 +30,7 @@ type App struct {
 	logFile  *os.File
 
 	smartScanCancel context.CancelFunc
+	quitting       bool
 }
 
 func NewApp() *App {
@@ -67,6 +68,8 @@ func (a *App) startup(ctx context.Context) {
 	a.cleaner = cleaner.New(a.store)
 
 	a.logger.Println("startup complete")
+
+	go a.startTray()
 }
 
 func (a *App) shutdown(ctx context.Context) {

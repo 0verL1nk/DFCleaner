@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	fyne.io/systray v1.12.1 // indirect
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect

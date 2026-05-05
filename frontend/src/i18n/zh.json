@@ -35,6 +35,11 @@
     "scanningFiles": "扫描中... 已发现 {{count}} 个文件",
     "analyzingFiles": "分析 {{current}}/{{total}}... 发现 {{found}} 个可清理项",
     "agentExploring": "AI 探索中... 已扫描 {{dirs}} 个目录，发现 {{found}} 个可清理项",
+    "progress": {
+      "dirs": "已扫描目录",
+      "found": "发现项目",
+      "size": "可清理"
+    },
     "itemsToClean": "个可清理项",
     "selected": "已选中",
     "reason": "原因",

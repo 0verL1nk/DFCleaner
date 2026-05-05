@@ -35,6 +35,11 @@
     "scanningFiles": "Scanning... {{count}} files found",
     "analyzingFiles": "Analyzing {{current}}/{{total}}... {{found}} items to clean",
     "agentExploring": "AI exploring... {{dirs}} directories scanned, {{found}} cleanable items found",
+    "progress": {
+      "dirs": "Directories",
+      "found": "Found",
+      "size": "Cleanable"
+    },
     "itemsToClean": "items to clean",
     "selected": "selected",
     "reason": "Reason",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useScannerStore, type CleanableItem, type RiskLevel } from '@/stores/scanner'
 import { useSmartScan, useCancelSmartScan, useCleanup, useSystemDrives, useQuickTargets } from '@/hooks/wails'
-import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, HardDrive, Download, Archive, File, Trash, Image, X } from 'lucide-react'
+import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, HardDrive, Download, Archive, File, Trash, Image, X, FolderSearch, Sparkles, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -161,19 +161,57 @@ export function Scanner() {
 
       {/* Progress */}
       {isRunning && (
-        <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span className="text-sm">
-              {t('scanner.agentExploring', {
-                dirs: smartScanProgress.dirsExplored || 0,
-                found: smartScanProgress.itemsFound || 0,
-              })}
-            </span>
+        <div className="relative overflow-hidden border-b border-border bg-muted/20">
+          {/* Shimmer bar */}
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-primary/60 to-transparent animate-shimmer" />
+
+          <div className="px-5 py-4 space-y-3">
+            {/* Header */}
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+              </div>
+              <span className="text-sm font-medium">
+                {t('scanner.agentExploring', {
+                  dirs: smartScanProgress.dirsExplored || 0,
+                  found: smartScanProgress.itemsFound || 0,
+                })}
+              </span>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                  <FolderSearch className="w-3 h-3" />
+                  <span className="text-[10px] uppercase tracking-wider">{t('scanner.progress.dirs')}</span>
+                </div>
+                <span className="text-lg font-semibold tabular-nums">{smartScanProgress.dirsExplored || 0}</span>
+              </div>
+              <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                  <Trash2 className="w-3 h-3" />
+                  <span className="text-[10px] uppercase tracking-wider">{t('scanner.progress.found')}</span>
+                </div>
+                <span className="text-lg font-semibold tabular-nums">{smartScanProgress.itemsFound || 0}</span>
+              </div>
+              <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                  <BarChart3 className="w-3 h-3" />
+                  <span className="text-[10px] uppercase tracking-wider">{t('scanner.progress.size')}</span>
+                </div>
+                <span className="text-lg font-semibold">{formatBytes(totalCleanableSize)}</span>
+              </div>
+            </div>
+
+            {/* Current action */}
+            {smartScanProgress.currentAction && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                <span className="truncate">{smartScanProgress.currentAction}</span>
+              </div>
+            )}
           </div>
-          {smartScanProgress.currentAction && (
-            <p className="text-xs text-muted-foreground mt-1">{smartScanProgress.currentAction}</p>
-          )}
         </div>
       )}
 
