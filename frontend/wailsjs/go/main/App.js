@@ -46,6 +46,10 @@ export function GetSystemDrives() {
   return window['go']['main']['App']['GetSystemDrives']();
 }
 
+export function GetVersion() {
+  return window['go']['main']['App']['GetVersion']();
+}
+
 export function SaveLLMConfig(arg1) {
   return window['go']['main']['App']['SaveLLMConfig'](arg1);
 }

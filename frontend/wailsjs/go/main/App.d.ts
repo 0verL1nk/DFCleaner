@@ -28,6 +28,8 @@ export function GetSettings():Promise<Record<string, string>>;
 
 export function GetSystemDrives():Promise<Array<platform.DriveInfo>>;
 
+export function GetVersion():Promise<string>;
+
 export function SaveLLMConfig(arg1:llm.LLMConfig):Promise<void>;
 
 export function Scan(arg1:string,arg2:scanner.ScanOptions):Promise<scanner.ScanResult>;

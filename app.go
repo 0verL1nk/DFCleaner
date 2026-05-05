@@ -16,6 +16,9 @@ import (
 	wailsrt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// Version is set via -ldflags at build time. Defaults to "dev".
+var Version = "dev"
+
 type App struct {
 	ctx      context.Context
 	store    *store.Store
@@ -152,4 +155,8 @@ func (a *App) GetSystemDrives() []platform.DriveInfo {
 
 func (a *App) GetQuickTargets() []platform.QuickTarget {
 	return platform.GetQuickTargets()
+}
+
+func (a *App) GetVersion() string {
+	return Version
 }

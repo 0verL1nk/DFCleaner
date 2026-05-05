@@ -48,7 +48,7 @@ jobs:
 
       # Build portable version
       - name: Build
-        run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41
+        run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41 -ldflags "-X main.Version=${{ github.ref_name }}"
         env:
           CGO_ENABLED: 1
 
@@ -88,7 +88,7 @@ jobs:
 
       - name: Build NSIS installer (Windows)
         if: matrix.platform == 'windows'
-        run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41 -nsis
+        run: wails build -platform ${{ matrix.platform }}/${{ matrix.arch }} -tags webkit2_41 -nsis -ldflags "-X main.Version=${{ github.ref_name }}"
         env:
           CGO_ENABLED: 1
 

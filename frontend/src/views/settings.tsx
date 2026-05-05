@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting } from '@/hooks/wails'
+import * as App from '../../wailsjs/go/main/App'
 import { useSettingsStore } from '@/stores/settings'
 import { Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -20,6 +21,7 @@ export function Settings() {
   const setSetting = useSetSetting()
   const { theme, language, contentPreview, setTheme, setLanguage, setContentPreview } = useSettingsStore()
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
+  const [version, setVersion] = useState('')
 
   const [provider, setProvider] = useState('openai')
   const [endpoint, setEndpoint] = useState('https://api.openai.com/v1')
@@ -34,6 +36,10 @@ export function Settings() {
       setModelName(activeConfig.modelName || '')
     }
   }, [activeConfig])
+
+  useEffect(() => {
+    App.GetVersion().then((v) => setVersion(v))
+  }, [])
 
   function getFormConfig() {
     return { provider, endpoint, apiKey, modelName, isActive: true }
@@ -191,6 +197,10 @@ export function Settings() {
           </div>
         </div>
       </section>
+
+      {version && (
+        <p className="text-xs text-muted-foreground text-center pt-4">DFCleaner {version}</p>
+      )}
     </div>
   )
 }
