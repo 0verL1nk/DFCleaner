@@ -80,31 +80,6 @@ export namespace llm {
 
 }
 
-export namespace main {
-	
-	export class UpdateInfo {
-	    hasUpdate: boolean;
-	    currentVer: string;
-	    latestVer: string;
-	    downloadUrl: string;
-	    releaseNotes: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UpdateInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.hasUpdate = source["hasUpdate"];
-	        this.currentVer = source["currentVer"];
-	        this.latestVer = source["latestVer"];
-	        this.downloadUrl = source["downloadUrl"];
-	        this.releaseNotes = source["releaseNotes"];
-	    }
-	}
-
-}
-
 export namespace platform {
 	
 	export class DriveInfo {
@@ -400,6 +375,31 @@ export namespace store {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace updater {
+	
+	export class UpdateInfo {
+	    hasUpdate: boolean;
+	    currentVer: string;
+	    latestVer: string;
+	    downloadUrl: string;
+	    releaseNotes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hasUpdate = source["hasUpdate"];
+	        this.currentVer = source["currentVer"];
+	        this.latestVer = source["latestVer"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.releaseNotes = source["releaseNotes"];
+	    }
 	}
 
 }

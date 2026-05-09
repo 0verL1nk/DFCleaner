@@ -117,6 +117,17 @@
       "light": "浅色",
       "dark": "深色",
       "system": "跟随系统"
+    },
+    "about": {
+      "checkUpdate": "检查更新",
+      "upToDate": "已是最新版本",
+      "updateAvailable": "v{{version}} 可更新",
+      "updateAndRestart": "更新并重启",
+      "downloading": "下载中... {{progress}}%",
+      "extracting": "解压中...",
+      "replacing": "替换中...",
+      "restarting": "重启中...",
+      "updateFailed": "更新失败"
     }
   },
   "cleanup": {

@@ -117,6 +117,17 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
+    },
+    "about": {
+      "checkUpdate": "Check for Updates",
+      "upToDate": "Up to date",
+      "updateAvailable": "v{{version}} available",
+      "updateAndRestart": "Update & Restart",
+      "downloading": "Downloading... {{progress}}%",
+      "extracting": "Extracting...",
+      "replacing": "Replacing...",
+      "restarting": "Restarting...",
+      "updateFailed": "Update failed"
     }
   },
   "cleanup": {

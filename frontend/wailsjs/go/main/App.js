@@ -66,6 +66,10 @@ export function GetVersion() {
   return window['go']['main']['App']['GetVersion']();
 }
 
+export function PerformUpdate(arg1) {
+  return window['go']['main']['App']['PerformUpdate'](arg1);
+}
+
 export function SaveLLMConfig(arg1) {
   return window['go']['main']['App']['SaveLLMConfig'](arg1);
 }

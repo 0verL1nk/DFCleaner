@@ -125,3 +125,9 @@ export function useCheckForUpdate() {
     mutationFn: () => App.CheckForUpdate(),
   })
 }
+
+export function usePerformUpdate() {
+  return useMutation({
+    mutationFn: (info: any) => App.PerformUpdate(info),
+  })
+}

@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
-import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate } from '@/hooks/wails'
+import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate, usePerformUpdate } from '@/hooks/wails'
 import * as App from '../../wailsjs/go/main/App'
 import { useSettingsStore } from '@/stores/settings'
-import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
+import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, Download } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -214,10 +215,20 @@ export function Settings() {
 function UpdateChecker() {
   const { t } = useTranslation()
   const checkUpdate = useCheckForUpdate()
+  const performUpdate = usePerformUpdate()
   const [updateInfo, setUpdateInfo] = useState<{ hasUpdate: boolean; latestVer: string; downloadUrl: string } | null>(null)
+  const [updateProgress, setUpdateProgress] = useState<{ phase: string; progress: number; message: string } | null>(null)
+
+  useEffect(() => {
+    const off = EventsOn('update:progress', (data: any) => {
+      setUpdateProgress({ phase: data.phase, progress: data.progress, message: data.message })
+    })
+    return () => { off() }
+  }, [])
 
   async function handleCheck() {
     setUpdateInfo(null)
+    setUpdateProgress(null)
     try {
       const result = await checkUpdate.mutateAsync() as any
       setUpdateInfo({ hasUpdate: result.hasUpdate, latestVer: result.latestVer, downloadUrl: result.downloadUrl })
@@ -226,25 +237,58 @@ function UpdateChecker() {
     }
   }
 
+  function handleUpdate() {
+    if (!updateInfo) return
+    performUpdate.mutate({
+      hasUpdate: updateInfo.hasUpdate,
+      latestVer: updateInfo.latestVer,
+      downloadUrl: updateInfo.downloadUrl,
+    })
+  }
+
+  const isUpdating = performUpdate.isPending || updateProgress !== null
+
   return (
-    <div className="flex items-center gap-2 mt-1">
-      <Button size="sm" variant="ghost" onClick={handleCheck} disabled={checkUpdate.isPending}>
-        {checkUpdate.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-        {t('settings.about.checkUpdate', 'Check for Updates')}
-      </Button>
-      {updateInfo && updateInfo.hasUpdate && (
-        <a
-          href={updateInfo.downloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          <ExternalLink className="w-3 h-3" />
-          v{updateInfo.latestVer} available
-        </a>
+    <div className="mt-1 space-y-2">
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="ghost" onClick={handleCheck} disabled={checkUpdate.isPending || isUpdating}>
+          {checkUpdate.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+          {t('settings.about.checkUpdate')}
+        </Button>
+        {updateInfo && !updateInfo.hasUpdate && (
+          <span className="text-xs text-muted-foreground">{t('settings.about.upToDate')}</span>
+        )}
+      </div>
+
+      {updateInfo && updateInfo.hasUpdate && !isUpdating && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {t('settings.about.updateAvailable', { version: updateInfo.latestVer })}
+          </span>
+          <Button size="sm" onClick={handleUpdate}>
+            <Download className="w-3 h-3 mr-1" />
+            {t('settings.about.updateAndRestart')}
+          </Button>
+        </div>
       )}
-      {updateInfo && !updateInfo.hasUpdate && (
-        <span className="text-xs text-muted-foreground">{t('settings.about.upToDate', 'Up to date')}</span>
+
+      {isUpdating && updateProgress && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span className="text-xs text-muted-foreground">{updateProgress.message}</span>
+          </div>
+          <div className="w-48 h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-300"
+              style={{ width: `${updateProgress.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {performUpdate.isError && (
+        <span className="text-xs text-destructive">{t('settings.about.updateFailed')}</span>
       )}
     </div>
   )

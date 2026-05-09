@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"dfcleaner/internal/analyzer"
 	"dfcleaner/internal/cleaner"
@@ -16,6 +12,7 @@ import (
 	"dfcleaner/internal/platform"
 	"dfcleaner/internal/scanner"
 	"dfcleaner/internal/store"
+	"dfcleaner/internal/updater"
 
 	wailsrt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -30,6 +27,7 @@ type App struct {
 	analyzer *analyzer.Analyzer
 	cleaner  *cleaner.Cleaner
 	llm      *llm.Provider
+	updater  *updater.Updater
 	logger   *log.Logger
 	logFile  *os.File
 
@@ -70,6 +68,7 @@ func (a *App) startup(ctx context.Context) {
 	a.llm = llm.New(a.store)
 	a.analyzer = analyzer.New(ctx, a.llm, a.scanner, a.store)
 	a.cleaner = cleaner.New(a.store)
+	a.updater = updater.New(ctx, a.logger)
 
 	a.logger.Println("startup complete")
 
@@ -180,55 +179,10 @@ func (a *App) ClearCleanableItems(scanPath string) error {
 	return a.store.ClearCleanableItems(scanPath)
 }
 
-type UpdateInfo struct {
-	HasUpdate    bool   `json:"hasUpdate"`
-	CurrentVer   string `json:"currentVer"`
-	LatestVer    string `json:"latestVer"`
-	DownloadURL  string `json:"downloadUrl"`
-	ReleaseNotes string `json:"releaseNotes"`
+func (a *App) CheckForUpdate() (*updater.UpdateInfo, error) {
+	return a.updater.CheckForUpdate(Version)
 }
 
-func (a *App) CheckForUpdate() (*UpdateInfo, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://api.github.com/repos/0verL1nk/DFCleaner/releases/latest")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var release struct {
-		TagName string `json:"tag_name"`
-		HTMLURL string `json:"html_url"`
-		Body    string `json:"body"`
-		Assets  []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return nil, err
-	}
-
-	info := &UpdateInfo{
-		CurrentVer:   Version,
-		LatestVer:    release.TagName,
-		ReleaseNotes: release.Body,
-	}
-
-	// Compare versions (strip 'v' prefix)
-	current := strings.TrimPrefix(Version, "v")
-	latest := strings.TrimPrefix(release.TagName, "v")
-	info.HasUpdate = latest != "" && latest != current && latest > current
-
-	// Find matching download URL for current platform
-	for _, asset := range release.Assets {
-		info.DownloadURL = asset.URL
-		break
-	}
-	if info.DownloadURL == "" {
-		info.DownloadURL = release.HTMLURL
-	}
-
-	a.logger.Printf("[Update] current=%s latest=%s hasUpdate=%v", Version, release.TagName, info.HasUpdate)
-	return info, nil
+func (a *App) PerformUpdate(info updater.UpdateInfo) error {
+	return a.updater.PerformUpdate(&info)
 }
