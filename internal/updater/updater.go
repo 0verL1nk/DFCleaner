@@ -130,7 +130,12 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	archivePath := filepath.Join(tmpDir, "update-archive")
+	// Preserve extension from URL so extract() can detect format
+	ext := ".tar.gz"
+	if strings.HasSuffix(info.DownloadURL, ".zip") {
+		ext = ".zip"
+	}
+	archivePath := filepath.Join(tmpDir, "update-archive"+ext)
 	if err := u.download(info.DownloadURL, archivePath); err != nil {
 		u.logger.Printf("[Update] ERROR download: %v", err)
 		return fmt.Errorf("download: %w", err)
