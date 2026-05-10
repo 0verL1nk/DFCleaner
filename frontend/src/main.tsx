@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import './i18n'
 import './style.css'
 import { router } from './routes/router'
@@ -14,11 +15,18 @@ const queryClient = new QueryClient()
 
 function ThemeSync() {
   const { data } = useSettings()
-  const { loadFromMap, theme } = useSettingsStore()
+  const { loadFromMap, theme, language } = useSettingsStore()
+  const { i18n } = useTranslation()
 
   useEffect(() => {
     if (data) loadFromMap(data)
   }, [data, loadFromMap])
+
+  useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language)
+    }
+  }, [language, i18n])
 
   useEffect(() => {
     const root = document.documentElement
