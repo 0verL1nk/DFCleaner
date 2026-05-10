@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"dfcleaner/internal/scanner"
@@ -37,24 +36,12 @@ func (a *Analyzer) BatchAnalyze(ctx context.Context, entries []scanner.FileEntry
 	sb.WriteString("Analyze the following files/directories and determine if they are safe to delete. ")
 	sb.WriteString("For each item, respond with a JSON array where each element has: path, risk_level (safe/caution/dangerous), reason, category (cache/temp/log/config/document/media), confidence (0-1).\n\n")
 
-	contentPreview := false
-	if a.store != nil {
-		contentPreview = a.store.GetSetting("content_preview") == "true"
-	}
-
 	for _, e := range entries {
 		sb.WriteString(fmt.Sprintf("- Path: %s, Name: %s, Size: %d, Type: %s, IsDir: %v, ModTime: %s",
 			e.Path, e.Name, e.Size, e.Extension, e.IsDir, e.ModTime.Format("2006-01-02")))
 
 		if !e.AccessTime.IsZero() {
 			sb.WriteString(fmt.Sprintf(", LastAccess: %s", e.AccessTime.Format("2006-01-02")))
-		}
-
-		if contentPreview && !e.IsDir && e.Size > 0 && e.Size < 10*1024*1024 {
-			preview, err := readFilePreview(e.Path, 1024)
-			if err == nil && len(preview) > 0 {
-				sb.WriteString(fmt.Sprintf("\n  Content preview: %s", string(preview)))
-			}
 		}
 
 		sb.WriteString("\n")
@@ -72,21 +59,6 @@ func (a *Analyzer) BatchAnalyze(ctx context.Context, entries []scanner.FileEntry
 	}
 
 	return parseAnalysisResponse(resp.Content, entries)
-}
-
-func readFilePreview(path string, maxBytes int) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	buf := make([]byte, maxBytes)
-	n, err := f.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
 }
 
 func parseAnalysisResponse(content string, entries []scanner.FileEntry) ([]AnalysisResult, error) {

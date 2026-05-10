@@ -100,16 +100,6 @@
       "noFc": "已连接，但不支持函数调用。Agent 功能可能无法正常工作。",
       "active": "活跃"
     },
-    "scan": {
-      "title": "扫描偏好",
-      "contentPreview": "发送文件内容片段（前 1KB）",
-      "excludeDirs": "排除目录",
-      "maxDepth": "最大深度"
-    },
-    "privacy": {
-      "title": "隐私",
-      "contentPreviewDesc": "启用后会将文件内容发送给 LLM 以获得更精准的分析"
-    },
     "appearance": {
       "title": "外观",
       "theme": "主题",

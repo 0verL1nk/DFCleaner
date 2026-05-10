@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"dfcleaner/internal/store"
+	"dfcleaner/internal/config"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
@@ -13,12 +13,12 @@ import (
 )
 
 type Provider struct {
-	store   *store.Store
+	cfg     *config.Manager
 	current model.ChatModel
 }
 
-func New(s *store.Store) *Provider {
-	return &Provider{store: s}
+func New(cfg *config.Manager) *Provider {
+	return &Provider{cfg: cfg}
 }
 
 func (p *Provider) TestConnection(ctx context.Context, config LLMConfig) (*ConnectionTestResult, error) {
@@ -30,7 +30,6 @@ func (p *Provider) TestConnection(ctx context.Context, config LLMConfig) (*Conne
 		}, nil
 	}
 
-	// Test with a function calling request
 	toolInfo := &schema.ToolInfo{
 		Name: "test_tool",
 		Desc: "A test tool to verify function calling support",
@@ -54,7 +53,6 @@ func (p *Provider) TestConnection(ctx context.Context, config LLMConfig) (*Conne
 		}, nil
 	}
 
-	// Check if response contains tool calls
 	hasToolCall := len(resp.ToolCalls) > 0
 	if !hasToolCall {
 		return &ConnectionTestResult{
@@ -75,21 +73,21 @@ func (p *Provider) GetActiveModel(ctx context.Context) (model.ChatModel, error) 
 		return p.current, nil
 	}
 
-	cfg := p.store.GetActiveLLMConfig()
-	if cfg == nil {
+	entry := p.cfg.GetActiveLLM()
+	if entry == nil {
 		return nil, fmt.Errorf("no active LLM configuration")
 	}
 
-	apiKey, err := decryptAPIKey(cfg.APIKey)
+	apiKey, err := decryptAPIKey(entry.APIKey)
 	if err != nil {
 		return nil, fmt.Errorf("decrypt API key: %w", err)
 	}
 
 	llmCfg := LLMConfig{
-		Provider:  cfg.Provider,
-		Endpoint:  cfg.Endpoint,
+		Provider:  entry.Provider,
+		Endpoint:  entry.Endpoint,
 		APIKey:    apiKey,
-		ModelName: cfg.ModelName,
+		ModelName: entry.ModelName,
 	}
 
 	chatModel, err := p.createChatModel(ctx, llmCfg)
@@ -114,7 +112,6 @@ func (p *Provider) createChatModel(ctx context.Context, config LLMConfig) (model
 	case "ollama":
 		return p.createOllama(ctx, config)
 	default:
-		// Default: try OpenAI compatible
 		return p.createOpenAICompatible(ctx, config)
 	}
 }
@@ -128,9 +125,6 @@ func (p *Provider) createOpenAICompatible(ctx context.Context, config LLMConfig)
 }
 
 func (p *Provider) createClaude(ctx context.Context, config LLMConfig) (model.ChatModel, error) {
-	// eino-ext/components/model/claude
-	// Import dynamically to avoid hard dependency
-	// For now, fall back to OpenAI compatible with Claude endpoint
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL: config.Endpoint,
 		APIKey:  config.APIKey,
@@ -141,29 +135,29 @@ func (p *Provider) createClaude(ctx context.Context, config LLMConfig) (model.Ch
 func (p *Provider) createOllama(ctx context.Context, config LLMConfig) (model.ChatModel, error) {
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL: config.Endpoint,
-		APIKey:  "ollama", // Ollama doesn't need a real key
+		APIKey:  "ollama",
 		Model:   config.ModelName,
 	})
 }
 
 // GetActiveConfig returns the decrypted active LLM config for app.go binding.
 func (p *Provider) GetActiveConfig() (*LLMConfig, error) {
-	cfg := p.store.GetActiveLLMConfig()
-	if cfg == nil {
+	entry := p.cfg.GetActiveLLM()
+	if entry == nil {
 		return nil, nil
 	}
 
-	apiKey, err := decryptAPIKey(cfg.APIKey)
+	apiKey, err := decryptAPIKey(entry.APIKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LLMConfig{
-		Provider:  cfg.Provider,
-		Endpoint:  cfg.Endpoint,
+		Provider:  entry.Provider,
+		Endpoint:  entry.Endpoint,
 		APIKey:    apiKey,
-		ModelName: cfg.ModelName,
-		IsActive:  cfg.IsActive,
+		ModelName: entry.ModelName,
+		IsActive:  entry.IsActive,
 	}, nil
 }
 
@@ -174,7 +168,7 @@ func (p *Provider) SaveConfig(cfg *LLMConfig) error {
 		return fmt.Errorf("encrypt API key: %w", err)
 	}
 
-	dbCfg := &store.LLMConfig{
+	entry := config.LLMEntry{
 		Provider:  cfg.Provider,
 		Endpoint:  cfg.Endpoint,
 		APIKey:    encrypted,
@@ -182,7 +176,7 @@ func (p *Provider) SaveConfig(cfg *LLMConfig) error {
 		IsActive:  cfg.IsActive,
 	}
 
-	if err := p.store.SaveLLMConfig(dbCfg); err != nil {
+	if err := p.cfg.SaveLLM(entry); err != nil {
 		return err
 	}
 

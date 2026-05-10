@@ -7,11 +7,10 @@ import { useState, useEffect } from 'react'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -20,7 +19,7 @@ export function Settings() {
   const saveConfig = useSaveLLMConfig()
   const testConnection = useTestLLMConnection()
   const setSetting = useSetSetting()
-  const { theme, language, contentPreview, setTheme, setLanguage, setContentPreview } = useSettingsStore()
+  const { theme, language, setTheme, setLanguage } = useSettingsStore()
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [version, setVersion] = useState('')
 
@@ -86,7 +85,7 @@ export function Settings() {
         {configs && configs.length > 0 && (
           <div className="space-y-2">
             {configs.map((cfg: any) => (
-              <div key={cfg.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
+              <div key={`${cfg.provider}-${cfg.modelName}`} className="flex items-center gap-3 p-3 rounded-lg border border-border">
                 <span className="text-sm font-medium">{cfg.provider}</span>
                 <span className="text-sm text-muted-foreground">{cfg.modelName}</span>
                 <span className="text-xs text-muted-foreground flex-1 truncate">{cfg.endpoint}</span>
@@ -147,25 +146,6 @@ export function Settings() {
               {testResult.msg}
             </div>
           )}
-        </div>
-      </section>
-
-      <Separator />
-
-      {/* Scan Preferences */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">{t('settings.scan.title')}</h2>
-        <div className="flex items-center gap-3">
-          <Checkbox
-            id="content-preview"
-            checked={contentPreview}
-            onCheckedChange={(v) => {
-              const checked = v === true
-              setContentPreview(checked)
-              setSetting.mutate({ key: 'content_preview', value: String(checked) })
-            }}
-          />
-          <Label htmlFor="content-preview">{t('settings.scan.contentPreview')}</Label>
         </div>
       </section>
 

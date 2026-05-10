@@ -6,8 +6,10 @@ toolchain go1.24.4
 
 require (
 	fyne.io/systray v1.12.1
+	github.com/adrg/xdg v0.5.3
 	github.com/cloudwego/eino v0.8.13
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
+	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/wailsapp/wails/v2 v2.12.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
@@ -51,7 +53,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

@@ -5,6 +5,7 @@ import {updater} from '../models';
 import {cleaner} from '../models';
 import {llm} from '../models';
 import {store} from '../models';
+import {config} from '../models';
 import {platform} from '../models';
 
 export function AnalyzeFiles(arg1:Array<scanner.FileEntry>):Promise<void>;
@@ -27,7 +28,7 @@ export function GetCleanableItems(arg1:string):Promise<Array<store.CleanableItem
 
 export function GetCleanableSize(arg1:string):Promise<number>;
 
-export function GetLLMConfigs():Promise<Array<store.LLMConfig>>;
+export function GetLLMConfigs():Promise<Array<config.LLMEntry>>;
 
 export function GetQuickTargets():Promise<Array<platform.QuickTarget>>;
 

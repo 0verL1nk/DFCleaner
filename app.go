@@ -8,6 +8,7 @@ import (
 
 	"dfcleaner/internal/analyzer"
 	"dfcleaner/internal/cleaner"
+	"dfcleaner/internal/config"
 	"dfcleaner/internal/llm"
 	"dfcleaner/internal/platform"
 	"dfcleaner/internal/scanner"
@@ -23,6 +24,7 @@ var Version = "dev"
 type App struct {
 	ctx      context.Context
 	store    *store.Store
+	cfg      *config.Manager
 	scanner  *scanner.Scanner
 	analyzer *analyzer.Analyzer
 	cleaner  *cleaner.Cleaner
@@ -59,6 +61,15 @@ func (a *App) startup(ctx context.Context) {
 
 	updater.CleanOldBackup()
 
+	// Initialize TOML config (persists across reinstalls)
+	cfg, err := config.NewManager()
+	if err != nil {
+		a.logger.Printf("WARN: config init failed: %v", err)
+	} else {
+		a.cfg = cfg
+	}
+
+	// Initialize SQLite for operational data (scan results, cleanup logs)
 	db, err := store.InitDB("dfcleaner.db")
 	if err != nil {
 		a.logger.Printf("FATAL: failed to init db: %v", err)
@@ -66,8 +77,14 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	a.store = store.New(db)
+
+	// Migrate settings from SQLite to TOML if config file was just created
+	if a.cfg != nil {
+		a.migrateFromStore()
+	}
+
 	a.scanner = scanner.New(ctx)
-	a.llm = llm.New(a.store)
+	a.llm = llm.New(a.cfg)
 	a.analyzer = analyzer.New(ctx, a.llm, a.scanner, a.store)
 	a.cleaner = cleaner.New(a.store)
 	a.updater = updater.New(ctx, a.logger)
@@ -75,6 +92,46 @@ func (a *App) startup(ctx context.Context) {
 	a.logger.Println("startup complete")
 
 	go a.startTray()
+}
+
+// migrateFromStore copies settings from SQLite to TOML on first run with new config.
+// Only runs if TOML config has no LLM entries and SQLite has some.
+func (a *App) migrateFromStore() {
+	if len(a.cfg.GetAllLLMs()) > 0 {
+		return
+	}
+
+	llmCfg := a.store.GetActiveLLMConfig()
+	if llmCfg == nil {
+		// Also migrate theme/language
+		theme := a.store.GetSetting("theme")
+		lang := a.store.GetSetting("language")
+		if theme != "" || lang != "" {
+			_ = a.cfg.ImportFromStore(
+				a.store.GetSetting("theme"),
+				a.store.GetSetting("language"),
+				nil,
+			)
+		}
+		return
+	}
+
+	entries := []config.LLMEntry{
+		{
+			Provider:  llmCfg.Provider,
+			Endpoint:  llmCfg.Endpoint,
+			APIKey:    llmCfg.APIKey, // already encrypted in store
+			ModelName: llmCfg.ModelName,
+			IsActive:  llmCfg.IsActive,
+		},
+	}
+
+	_ = a.cfg.ImportFromStore(
+		a.store.GetSetting("theme"),
+		a.store.GetSetting("language"),
+		entries,
+	)
+	a.logger.Println("migrated settings from SQLite to TOML")
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -130,8 +187,8 @@ func (a *App) SaveLLMConfig(config llm.LLMConfig) error {
 	return a.llm.SaveConfig(&config)
 }
 
-func (a *App) GetLLMConfigs() []store.LLMConfig {
-	return a.store.GetLLMConfigs()
+func (a *App) GetLLMConfigs() []config.LLMEntry {
+	return a.cfg.GetAllLLMs()
 }
 
 func (a *App) GetActiveLLMConfig() (*llm.LLMConfig, error) {
@@ -140,14 +197,20 @@ func (a *App) GetActiveLLMConfig() (*llm.LLMConfig, error) {
 
 func (a *App) GetSettings() map[string]string {
 	return map[string]string{
-		"theme":           a.store.GetSetting("theme"),
-		"language":        a.store.GetSetting("language"),
-		"content_preview": a.store.GetSetting("content_preview"),
+		"theme":    a.cfg.GetTheme(),
+		"language": a.cfg.GetLanguage(),
 	}
 }
 
 func (a *App) SetSetting(key, value string) error {
-	return a.store.SetSetting(key, value)
+	switch key {
+	case "theme":
+		return a.cfg.SetTheme(value)
+	case "language":
+		return a.cfg.SetLanguage(value)
+	default:
+		return nil
+	}
 }
 
 func (a *App) GetRecentCleanups(limit int) []store.CleanupLog {

@@ -27,10 +27,8 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 	}
 
 	err = db.AutoMigrate(
-		&LLMConfig{},
 		&ScanHistory{},
 		&CleanupLog{},
-		&UserSetting{},
 		&CleanableItemDB{},
 	)
 	if err != nil {

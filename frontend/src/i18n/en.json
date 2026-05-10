@@ -100,16 +100,6 @@
       "noFc": "Connected, but function calling not supported. Agent features may not work.",
       "active": "Active"
     },
-    "scan": {
-      "title": "Scan Preferences",
-      "contentPreview": "Send file content preview (first 1KB)",
-      "excludeDirs": "Exclude Directories",
-      "maxDepth": "Max Depth"
-    },
-    "privacy": {
-      "title": "Privacy",
-      "contentPreviewDesc": "Enabling this sends file content to the LLM for more accurate analysis"
-    },
     "appearance": {
       "title": "Appearance",
       "theme": "Theme",
