@@ -8,14 +8,12 @@ import (
 	"io"
 )
 
-// Simple AES-GCM encryption for API keys.
-// In production, prefer OS keyring. This is the fallback.
+// AES-GCM encryption for API keys, derived from machine-specific ID.
 
-var encryptionKey = []byte("dfcleaner-32byte-encryption-keyy") // 32 bytes, replaced at runtime with machine-specific key
+var encryptionKey []byte
 
 func init() {
-	// In real implementation, derive key from machine ID
-	// For now, use a fixed key (will be replaced)
+	encryptionKey = deriveEncryptionKey()
 }
 
 func encryptAPIKey(plaintext string) (string, error) {
