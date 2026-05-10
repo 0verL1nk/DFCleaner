@@ -1,18 +1,21 @@
 import { ReactNode } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { LayoutDashboard, Search, Settings, HardDrive } from 'lucide-react'
+import { LayoutDashboard, Search, Settings, HardDrive, Clock } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Titlebar } from './titlebar'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const location = useLocation()
+  useKeyboardShortcuts()
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
-    { path: '/scanner', icon: Search, label: t('nav.scanner') },
-    { path: '/settings', icon: Settings, label: t('nav.settings') },
+    { path: '/scanner', icon: Search, label: t('nav.scanner'), shortcut: 'Ctrl+S' },
+    { path: '/scheduler', icon: Clock, label: t('nav.scheduler') },
+    { path: '/settings', icon: Settings, label: t('nav.settings'), shortcut: 'Ctrl+,' },
   ]
 
   return (
@@ -38,7 +41,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
                       <item.icon className="w-5 h-5" />
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent side="right">{item.label}</TooltipContent>
+                  <TooltipContent side="right">
+                    {item.label}
+                    {item.shortcut && <span className="ml-2 text-xs text-muted-foreground">{item.shortcut}</span>}
+                  </TooltipContent>
                 </Tooltip>
               )
             })}

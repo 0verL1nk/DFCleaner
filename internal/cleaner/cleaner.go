@@ -22,12 +22,12 @@ func (c *Cleaner) Cleanup(items []CleanupItem) ([]CleanupResult, error) {
 
 	results := make([]CleanupResult, len(items))
 	for i, item := range items {
-		results[i] = c.cleanupOne(item)
+		results[i] = c.CleanupOne(item)
 	}
 	return results, nil
 }
 
-func (c *Cleaner) cleanupOne(item CleanupItem) CleanupResult {
+func (c *Cleaner) CleanupOne(item CleanupItem) CleanupResult {
 	path := filepath.Clean(item.Path)
 
 	if !filepath.IsAbs(path) {

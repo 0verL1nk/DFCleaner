@@ -30,6 +30,10 @@ export function ClearCleanableItems(arg1) {
   return window['go']['main']['App']['ClearCleanableItems'](arg1);
 }
 
+export function DeleteSchedule(arg1) {
+  return window['go']['main']['App']['DeleteSchedule'](arg1);
+}
+
 export function GetActiveLLMConfig() {
   return window['go']['main']['App']['GetActiveLLMConfig']();
 }
@@ -54,6 +58,10 @@ export function GetRecentCleanups(arg1) {
   return window['go']['main']['App']['GetRecentCleanups'](arg1);
 }
 
+export function GetSchedules() {
+  return window['go']['main']['App']['GetSchedules']();
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
@@ -74,6 +82,10 @@ export function SaveLLMConfig(arg1) {
   return window['go']['main']['App']['SaveLLMConfig'](arg1);
 }
 
+export function SaveSchedule(arg1) {
+  return window['go']['main']['App']['SaveSchedule'](arg1);
+}
+
 export function Scan(arg1, arg2) {
   return window['go']['main']['App']['Scan'](arg1, arg2);
 }
@@ -88,4 +100,8 @@ export function SmartScan(arg1, arg2) {
 
 export function TestLLMConnection(arg1) {
   return window['go']['main']['App']['TestLLMConnection'](arg1);
+}
+
+export function ToggleSchedule(arg1, arg2) {
+  return window['go']['main']['App']['ToggleSchedule'](arg1, arg2);
 }

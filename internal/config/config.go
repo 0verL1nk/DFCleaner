@@ -21,6 +21,7 @@ type LLMEntry struct {
 type AppConfig struct {
 	Theme    string     `toml:"theme"`
 	Language string     `toml:"language"`
+	SafeMode bool       `toml:"safe_mode"`
 	LLM      []LLMEntry `toml:"llm"`
 }
 
@@ -95,6 +96,19 @@ func (m *Manager) SetLanguage(lang string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.config.Language = lang
+	return m.save()
+}
+
+func (m *Manager) GetSafeMode() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config.SafeMode
+}
+
+func (m *Manager) SetSafeMode(enabled bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.SafeMode = enabled
 	return m.save()
 }
 

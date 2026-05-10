@@ -5,6 +5,7 @@
   "nav": {
     "dashboard": "仪表板",
     "scanner": "扫描器",
+    "scheduler": "定时任务",
     "settings": "设置"
   },
   "dashboard": {
@@ -118,6 +119,12 @@
       "replacing": "替换中...",
       "restarting": "重启中...",
       "updateFailed": "更新失败"
+    },
+    "cleanup": {
+      "title": "清理行为",
+      "safeMode": "安全模式（移到回收站而非直接删除）",
+      "safeModeDesc": "文件将移至系统回收站，可恢复，但不会立即释放磁盘空间。",
+      "defaultDesc": "文件将被永久删除，立即释放磁盘空间，但无法恢复。"
     }
   },
   "cleanup": {
@@ -133,6 +140,26 @@
     "complete": "清理完成。释放了 {{freed}} 空间。",
     "partialFailure": "{{success}} 个成功，{{failed}} 个失败。"
   },
+  "treemap": {
+    "noData": "暂无扫描数据",
+    "other": "其他",
+    "size": "大小",
+    "category": "分类",
+    "risk": "风险",
+    "drillDown": "点击目录深入查看"
+  },
+  "scheduler": {
+    "title": "定时清理",
+    "description": "配置自动扫描和定时清理任务。",
+    "add": "添加任务",
+    "empty": "暂无定时任务。",
+    "frequency": "频率",
+    "cronExpr": "Cron 表达式",
+    "scanPath": "扫描路径",
+    "maxRisk": "自动清理风险上限",
+    "lastRun": "上次运行",
+    "nextRun": "下次运行"
+  },
   "common": {
     "loading": "加载中...",
     "error": "错误",
@@ -145,6 +172,22 @@
     "kb": "KB",
     "mb": "MB",
     "gb": "GB",
-    "tb": "TB"
+    "tb": "TB",
+    "unknownError": "未知错误",
+    "connectionFailed": "连接失败",
+    "free": "可用"
+  },
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}}分钟前",
+    "hoursAgo": "{{count}}小时前",
+    "daysAgo": "{{count}}天前"
+  },
+  "cron": {
+    "daily3am": "每天凌晨3点",
+    "weeklySun2am": "每周日凌晨2点",
+    "every6h": "每6小时",
+    "hourly": "每小时",
+    "custom": "自定义"
   }
 }

@@ -66,11 +66,37 @@ function UpdateChecker() {
   return null
 }
 
+function SchedulerNotifier() {
+  const { t } = useTranslation()
+  useEffect(() => {
+    let unsub: (() => void) | undefined
+    ;(async () => {
+      const { EventsOn } = await import('../wailsjs/runtime/runtime')
+      unsub = EventsOn('scheduler:complete', (data: any) => {
+        const freed = data.freed > 0 ? formatBytes(data.freed) : '0 B'
+        toast.success(t('cleanup.complete', { freed }), { duration: 6000 })
+      })
+    })()
+    return () => { unsub?.() }
+  }, [t])
+
+  return null
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
       <UpdateChecker />
+      <SchedulerNotifier />
       <RouterProvider router={router} />
       <Toaster />
     </QueryClientProvider>

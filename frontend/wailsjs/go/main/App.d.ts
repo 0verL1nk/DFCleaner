@@ -7,6 +7,7 @@ import {llm} from '../models';
 import {store} from '../models';
 import {config} from '../models';
 import {platform} from '../models';
+import {scheduler} from '../models';
 
 export function AnalyzeFiles(arg1:Array<scanner.FileEntry>):Promise<void>;
 
@@ -22,6 +23,8 @@ export function Cleanup(arg1:Array<cleaner.CleanupItem>):Promise<Array<cleaner.C
 
 export function ClearCleanableItems(arg1:string):Promise<void>;
 
+export function DeleteSchedule(arg1:string):Promise<void>;
+
 export function GetActiveLLMConfig():Promise<llm.LLMConfig>;
 
 export function GetCleanableItems(arg1:string):Promise<Array<store.CleanableItemDB>>;
@@ -34,6 +37,8 @@ export function GetQuickTargets():Promise<Array<platform.QuickTarget>>;
 
 export function GetRecentCleanups(arg1:number):Promise<Array<store.CleanupLog>>;
 
+export function GetSchedules():Promise<Array<scheduler.ScheduleConfig>>;
+
 export function GetSettings():Promise<Record<string, string>>;
 
 export function GetSystemDrives():Promise<Array<platform.DriveInfo>>;
@@ -44,6 +49,8 @@ export function PerformUpdate(arg1:updater.UpdateInfo):Promise<void>;
 
 export function SaveLLMConfig(arg1:llm.LLMConfig):Promise<void>;
 
+export function SaveSchedule(arg1:scheduler.ScheduleConfig):Promise<void>;
+
 export function Scan(arg1:string,arg2:scanner.ScanOptions):Promise<scanner.ScanResult>;
 
 export function SetSetting(arg1:string,arg2:string):Promise<void>;
@@ -51,3 +58,5 @@ export function SetSetting(arg1:string,arg2:string):Promise<void>;
 export function SmartScan(arg1:string,arg2:scanner.ScanOptions):Promise<void>;
 
 export function TestLLMConnection(arg1:llm.LLMConfig):Promise<llm.ConnectionTestResult>;
+
+export function ToggleSchedule(arg1:string,arg2:boolean):Promise<void>;

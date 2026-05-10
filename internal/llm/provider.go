@@ -117,26 +117,32 @@ func (p *Provider) createChatModel(ctx context.Context, config LLMConfig) (model
 }
 
 func (p *Provider) createOpenAICompatible(ctx context.Context, config LLMConfig) (model.ChatModel, error) {
+	maxTokens := 16384
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL: config.Endpoint,
-		APIKey:  config.APIKey,
-		Model:   config.ModelName,
+		BaseURL:   config.Endpoint,
+		APIKey:    config.APIKey,
+		Model:     config.ModelName,
+		MaxTokens: &maxTokens,
 	})
 }
 
 func (p *Provider) createClaude(ctx context.Context, config LLMConfig) (model.ChatModel, error) {
+	maxTokens := 16384
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL: config.Endpoint,
-		APIKey:  config.APIKey,
-		Model:   config.ModelName,
+		BaseURL:   config.Endpoint,
+		APIKey:    config.APIKey,
+		Model:     config.ModelName,
+		MaxTokens: &maxTokens,
 	})
 }
 
 func (p *Provider) createOllama(ctx context.Context, config LLMConfig) (model.ChatModel, error) {
+	maxTokens := 16384
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL: config.Endpoint,
-		APIKey:  "ollama",
-		Model:   config.ModelName,
+		BaseURL:   config.Endpoint,
+		APIKey:    "ollama",
+		Model:     config.ModelName,
+		MaxTokens: &maxTokens,
 	})
 }
 

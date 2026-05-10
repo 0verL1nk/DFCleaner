@@ -48,6 +48,10 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Coverage
+coverage/
+frontend/coverage/
+
 # Logs
 *.log
 frontend/package.json.md5

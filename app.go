@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"dfcleaner/internal/analyzer"
 	"dfcleaner/internal/cleaner"
@@ -12,6 +14,7 @@ import (
 	"dfcleaner/internal/llm"
 	"dfcleaner/internal/platform"
 	"dfcleaner/internal/scanner"
+	"dfcleaner/internal/scheduler"
 	"dfcleaner/internal/store"
 	"dfcleaner/internal/updater"
 
@@ -27,9 +30,10 @@ type App struct {
 	cfg      *config.Manager
 	scanner  *scanner.Scanner
 	analyzer *analyzer.Analyzer
-	cleaner  *cleaner.Cleaner
-	llm      *llm.Provider
-	updater  *updater.Updater
+	cleaner   *cleaner.Cleaner
+	llm       *llm.Provider
+	updater   *updater.Updater
+	sched     *scheduler.Scheduler
 	logger   *log.Logger
 	logFile  *os.File
 
@@ -88,6 +92,19 @@ func (a *App) startup(ctx context.Context) {
 	a.analyzer = analyzer.New(ctx, a.llm, a.scanner, a.store)
 	a.cleaner = cleaner.New(a.store)
 	a.updater = updater.New(ctx, a.logger)
+
+	// Initialize scheduler
+	if err := scheduler.MigrateDB(db); err != nil {
+		a.logger.Printf("WARN: scheduler migration failed: %v", err)
+	}
+	schedStore := scheduler.NewDBStore(db)
+	a.sched = scheduler.New(schedStore, a.logger)
+	a.sched.SetScanHandler(func(scanCtx context.Context, scanPath string, maxAutoRisk scheduler.RiskLevel) error {
+		return a.scheduledScan(scanCtx, scanPath, maxAutoRisk)
+	})
+	if err := a.sched.Start(); err != nil {
+		a.logger.Printf("WARN: scheduler start failed: %v", err)
+	}
 
 	a.logger.Println("startup complete")
 
@@ -172,11 +189,18 @@ func (a *App) CancelAnalysis() {
 
 func (a *App) Cleanup(items []cleaner.CleanupItem) ([]cleaner.CleanupResult, error) {
 	a.logger.Printf("Cleanup: %d items", len(items))
-	results, err := a.cleaner.Cleanup(items)
-	if err != nil {
-		a.logger.Printf("Cleanup error: %v", err)
+	total := len(items)
+	results := make([]cleaner.CleanupResult, 0, total)
+	for i, item := range items {
+		wailsrt.EventsEmit(a.ctx, "cleanup:progress", map[string]any{
+			"current": i + 1,
+			"total":   total,
+			"path":    item.Path,
+		})
+		result := a.cleaner.CleanupOne(item)
+		results = append(results, result)
 	}
-	return results, err
+	return results, nil
 }
 
 func (a *App) TestLLMConnection(config llm.LLMConfig) (*llm.ConnectionTestResult, error) {
@@ -197,8 +221,9 @@ func (a *App) GetActiveLLMConfig() (*llm.LLMConfig, error) {
 
 func (a *App) GetSettings() map[string]string {
 	return map[string]string{
-		"theme":    a.cfg.GetTheme(),
-		"language": a.cfg.GetLanguage(),
+		"theme":     a.cfg.GetTheme(),
+		"language":  a.cfg.GetLanguage(),
+		"safe_mode": fmt.Sprintf("%v", a.cfg.GetSafeMode()),
 	}
 }
 
@@ -208,6 +233,8 @@ func (a *App) SetSetting(key, value string) error {
 		return a.cfg.SetTheme(value)
 	case "language":
 		return a.cfg.SetLanguage(value)
+	case "safe_mode":
+		return a.cfg.SetSafeMode(value == "true")
 	default:
 		return nil
 	}
@@ -226,6 +253,109 @@ func (a *App) GetSystemDrives() []platform.DriveInfo {
 
 func (a *App) GetQuickTargets() []platform.QuickTarget {
 	return platform.GetQuickTargets()
+}
+
+// --- Scheduler bindings ---
+
+func (a *App) GetSchedules() []scheduler.ScheduleConfig {
+	if a.sched == nil {
+		return nil
+	}
+	cfgs, err := a.sched.GetSchedules()
+	if err != nil {
+		return nil
+	}
+	return cfgs
+}
+
+func (a *App) SaveSchedule(cfg scheduler.ScheduleConfig) error {
+	if a.sched == nil {
+		return fmt.Errorf("scheduler not initialized")
+	}
+	if cfg.ID == "" {
+		cfg.ID = fmt.Sprintf("sched_%d", time.Now().UnixMilli())
+	}
+	if cfg.Enabled {
+		return a.sched.CreateSchedule(&cfg)
+	}
+	return a.sched.UpdateSchedule(&cfg)
+}
+
+func (a *App) DeleteSchedule(id string) error {
+	if a.sched == nil {
+		return fmt.Errorf("scheduler not initialized")
+	}
+	return a.sched.DeleteSchedule(id)
+}
+
+func (a *App) ToggleSchedule(id string, enabled bool) error {
+	if a.sched == nil {
+		return fmt.Errorf("scheduler not initialized")
+	}
+	return a.sched.ToggleSchedule(id, enabled)
+}
+
+// scheduledScan runs a Smart Scan triggered by the scheduler.
+func (a *App) scheduledScan(ctx context.Context, scanPath string, maxAutoRisk scheduler.RiskLevel) error {
+	a.logger.Printf("scheduled scan: path=%s maxRisk=%s", scanPath, maxAutoRisk)
+
+	// Run SmartScan synchronously for scheduled runs
+	a.SmartScan(scanPath, scanner.ScanOptions{})
+
+	// Wait for scan to complete (poll)
+	for i := 0; i < 120; i++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		time.Sleep(5 * time.Second)
+		items := a.store.GetCleanableItems(scanPath)
+		if len(items) > 0 {
+			break
+		}
+	}
+
+	// Auto-clean items at or below the risk threshold
+	items := a.store.GetCleanableItems(scanPath)
+	var toClean []cleaner.CleanupItem
+	for _, item := range items {
+		if item.RiskLevel == "safe" || (maxAutoRisk == scheduler.RiskCaution && item.RiskLevel == "caution") {
+			op := cleaner.OpDelete
+			if a.cfg.GetSafeMode() {
+				op = cleaner.OpTrash
+			}
+			toClean = append(toClean, cleaner.CleanupItem{
+				Path:      item.Path,
+				Operation: op,
+			})
+		}
+	}
+
+	var freed int64
+	var failed int
+	if len(toClean) > 0 {
+		results, err := a.cleaner.Cleanup(toClean)
+		if err != nil {
+			return fmt.Errorf("scheduled cleanup: %w", err)
+		}
+		for _, r := range results {
+			if r.Success {
+				freed += r.FreedBytes
+			} else {
+				failed++
+			}
+		}
+		a.logger.Printf("scheduled scan complete: cleaned=%d freed=%d failed=%d", len(toClean)-failed, freed, failed)
+	}
+
+	wailsrt.EventsEmit(a.ctx, "scheduler:complete", map[string]any{
+		"scanPath": scanPath,
+		"cleaned":  len(toClean) - failed,
+		"freed":    freed,
+		"failed":   failed,
+	})
+	return nil
 }
 
 func (a *App) GetVersion() string {

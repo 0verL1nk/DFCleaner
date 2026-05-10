@@ -238,7 +238,7 @@ func (s *Scanner) toolScanDirectory(ctx context.Context, input *ScanDirInput) (*
 
 	entries, err := os.ReadDir(input.Path)
 	if err != nil {
-		return nil, err
+		return &ScanDirOutput{Path: input.Path, SubDirs: 0, FileCount: 0, TotalSize: 0}, nil
 	}
 
 	out := &ScanDirOutput{Path: input.Path}
@@ -306,7 +306,10 @@ func (s *Scanner) toolScanDirectory(ctx context.Context, input *ScanDirInput) (*
 func (s *Scanner) toolGetFileInfo(ctx context.Context, input *GetFileInfoInput) (*FileEntry, error) {
 	info, err := os.Stat(input.Path)
 	if err != nil {
-		return nil, err
+		return &FileEntry{
+			Path: input.Path,
+			Name: filepath.Base(input.Path),
+		}, nil
 	}
 
 	entry := &FileEntry{
@@ -351,7 +354,7 @@ func (s *Scanner) toolGetLargeFiles(ctx context.Context, input *GetLargeFilesInp
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return &GetLargeFilesOutput{Files: []FileEntry{}}, nil
 	}
 
 	sort.Slice(files, func(i, j int) bool {
@@ -396,7 +399,7 @@ func (s *Scanner) toolGetOldFiles(ctx context.Context, input *GetOldFilesInput) 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return &GetOldFilesOutput{Files: []FileEntry{}}, nil
 	}
 
 	kept, resultFile, more := overflowFiles(files)
@@ -432,7 +435,7 @@ func (s *Scanner) toolFindDuplicates(ctx context.Context, input *FindDuplicatesI
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return &FindDuplicatesOutput{Groups: []DuplicateGroup{}}, nil
 	}
 
 	var groups []DuplicateGroup
@@ -460,12 +463,12 @@ func (s *Scanner) toolViewResult(ctx context.Context, input *ViewResultInput) (*
 
 	data, err := os.ReadFile(input.Path)
 	if err != nil {
-		return nil, fmt.Errorf("result file not found: %w", err)
+		return &ViewResultOutput{Items: []FileEntry{}, TotalCount: 0, Offset: input.Offset, HasMore: false}, nil
 	}
 
 	var allFiles []FileEntry
 	if err := json.Unmarshal(data, &allFiles); err != nil {
-		return nil, fmt.Errorf("invalid result file: %w", err)
+		return &ViewResultOutput{Items: []FileEntry{}, TotalCount: 0, Offset: input.Offset, HasMore: false}, nil
 	}
 
 	total := len(allFiles)

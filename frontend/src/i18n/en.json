@@ -5,6 +5,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "scanner": "Scanner",
+    "scheduler": "Scheduler",
     "settings": "Settings"
   },
   "dashboard": {
@@ -118,6 +119,12 @@
       "replacing": "Replacing...",
       "restarting": "Restarting...",
       "updateFailed": "Update failed"
+    },
+    "cleanup": {
+      "title": "Cleanup Behavior",
+      "safeMode": "Safe Mode (move to trash instead of deleting)",
+      "safeModeDesc": "Files will be moved to system trash. You can recover them later, but disk space is not freed until you empty the trash.",
+      "defaultDesc": "Files will be permanently deleted. This immediately frees disk space but files cannot be recovered."
     }
   },
   "cleanup": {
@@ -133,6 +140,26 @@
     "complete": "Cleanup complete. {{freed}} freed.",
     "partialFailure": "{{success}} succeeded, {{failed}} failed."
   },
+  "treemap": {
+    "noData": "No scan data yet",
+    "other": "Other",
+    "size": "Size",
+    "category": "Category",
+    "risk": "Risk",
+    "drillDown": "Click directory to explore"
+  },
+  "scheduler": {
+    "title": "Scheduled Cleaning",
+    "description": "Configure automatic scans and cleanup on a schedule.",
+    "add": "Add Schedule",
+    "empty": "No schedules configured yet.",
+    "frequency": "Frequency",
+    "cronExpr": "Cron Expression",
+    "scanPath": "Scan Path",
+    "maxRisk": "Max Auto-Clean Risk",
+    "lastRun": "Last run",
+    "nextRun": "Next run"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -145,6 +172,22 @@
     "kb": "KB",
     "mb": "MB",
     "gb": "GB",
-    "tb": "TB"
+    "tb": "TB",
+    "unknownError": "Unknown error",
+    "connectionFailed": "Connection failed",
+    "free": "free"
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
+  },
+  "cron": {
+    "daily3am": "Every day at 3am",
+    "weeklySun2am": "Every Sunday at 2am",
+    "every6h": "Every 6 hours",
+    "hourly": "Every hour",
+    "custom": "Custom"
   }
 }

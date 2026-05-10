@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate, usePerformUpdate } from '@/hooks/wails'
 import * as App from '../../wailsjs/go/main/App'
 import { useSettingsStore } from '@/stores/settings'
-import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, Download } from 'lucide-react'
+import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, Download, ShieldCheck, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -20,6 +21,7 @@ export function Settings() {
   const { theme, language, setTheme, setLanguage } = useSettingsStore()
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [version, setVersion] = useState('')
+  const [safeMode, setSafeMode] = useState(false)
 
   const [provider, setProvider] = useState('openai')
   const [endpoint, setEndpoint] = useState('https://api.openai.com/v1')
@@ -37,6 +39,9 @@ export function Settings() {
 
   useEffect(() => {
     App.GetVersion().then((v) => setVersion(v))
+    App.GetSettings().then((s: any) => {
+      if (s?.safe_mode === 'true') setSafeMode(true)
+    })
   }, [])
 
   function getFormConfig() {
@@ -54,10 +59,10 @@ export function Settings() {
       if (result.success) {
         setTestResult({ success: true, msg: result.noFunctionCalling ? t('settings.llm.noFc') : t('settings.llm.connected') })
       } else {
-        setTestResult({ success: false, msg: result.error ?? 'Unknown error' })
+        setTestResult({ success: false, msg: result.error ?? t('common.unknownError') })
       }
     } catch (err: any) {
-      setTestResult({ success: false, msg: err.message || 'Connection failed' })
+      setTestResult({ success: false, msg: err.message || t('common.connectionFailed') })
     }
   }
 
@@ -156,6 +161,30 @@ export function Settings() {
             </Select>
           </div>
         </div>
+      </section>
+
+      <Separator />
+
+      {/* Delete behavior */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">{t('settings.cleanup.title')}</h2>
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id="safe-mode"
+            checked={safeMode}
+            onCheckedChange={(checked) => {
+              setSafeMode(checked as boolean)
+              setSetting.mutate({ key: 'safe_mode', value: String(checked) })
+            }}
+          />
+          <Label htmlFor="safe-mode" className="flex items-center gap-2 cursor-pointer">
+            <ShieldCheck className="w-4 h-4 text-safe" />
+            {t('settings.cleanup.safeMode')}
+          </Label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {safeMode ? t('settings.cleanup.safeModeDesc') : t('settings.cleanup.defaultDesc')}
+        </p>
       </section>
 
       {/* About */}

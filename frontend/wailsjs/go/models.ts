@@ -257,6 +257,55 @@ export namespace scanner {
 
 }
 
+export namespace scheduler {
+	
+	export class ScheduleConfig {
+	    id: string;
+	    cronExpr: string;
+	    scanPath: string;
+	    maxAutoRisk: string;
+	    enabled: boolean;
+	    // Go type: time
+	    lastRun: any;
+	    // Go type: time
+	    nextRun?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScheduleConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.cronExpr = source["cronExpr"];
+	        this.scanPath = source["scanPath"];
+	        this.maxAutoRisk = source["maxAutoRisk"];
+	        this.enabled = source["enabled"];
+	        this.lastRun = this.convertValues(source["lastRun"], null);
+	        this.nextRun = this.convertValues(source["nextRun"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace store {
 	
 	export class CleanableItemDB {

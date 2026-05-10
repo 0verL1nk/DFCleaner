@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { useScannerStore, type CleanableItem, type RiskLevel } from '@/stores/scanner'
 import { useSmartScan, useCancelSmartScan, useCleanup, useSystemDrives, useQuickTargets, useCleanableItems, useClearCleanableItems } from '@/hooks/wails'
 import { FolderOpen, ChevronRight, Trash2, ShieldAlert, ShieldCheck, AlertTriangle, CheckSquare, Square, Loader2, HardDrive, Download, Archive, File, Trash, Image, X, FolderSearch, Sparkles, BarChart3 } from 'lucide-react'
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CleanupPreviewDialog } from '@/components/CleanupPreviewDialog'
 
 const targetIcons: Record<string, React.ReactNode> = {
   download: <Download className="w-4 h-4" />,
@@ -27,6 +29,7 @@ export function Scanner() {
   const { data: quickTargets } = useQuickTargets()
   const [scanPath, setScanPath] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [cleanupProgress, setCleanupProgress] = useState<{ current: number; total: number; path: string } | null>(null)
   const cleanupMutation = useCleanup()
 
   // Load cached cleanable items from DB on mount
@@ -73,6 +76,11 @@ export function Scanner() {
         console.error('SmartScan error:', err)
       })
       unsubs.push(u4)
+
+      const u5 = EventsOn('cleanup:progress', (p: any) => {
+        setCleanupProgress({ current: p.current, total: p.total, path: p.path })
+      })
+      unsubs.push(u5)
     })()
     return () => { unsubs.forEach((u) => u()) }
   }, [])
@@ -92,15 +100,17 @@ export function Scanner() {
 
   function handleCleanup(operation: 'trash' | 'delete') {
     const items = Array.from(selectedPaths).map((path) => ({ path, operation }))
+    setCleanupProgress({ current: 0, total: items.length, path: '' })
     cleanupMutation.mutate(items, {
       onSuccess: () => {
-        // Remove cleaned items from the list
         selectedPaths.forEach((path) => {
           useScannerStore.getState().removeCleanableItem(path)
         })
         store.clearSelection()
         setConfirmOpen(false)
+        setCleanupProgress(null)
       },
+      onError: () => setCleanupProgress(null),
     })
   }
 
@@ -151,7 +161,7 @@ export function Scanner() {
               >
                 <HardDrive className="w-3 h-3" />
                 <span className="font-medium">{d.label || d.path}</span>
-                <span className="text-muted-foreground">{formatBytes(d.free)} free</span>
+                <span className="text-muted-foreground">{formatBytes(d.free)} {t('common.free')}</span>
               </button>
             ))}
           </div>
@@ -247,6 +257,25 @@ export function Scanner() {
         </div>
       )}
 
+      {/* Cleanup progress overlay */}
+      {cleanupProgress && (
+        <div className="px-5 py-4 border-b border-border bg-muted/20 space-y-2">
+          <div className="flex items-center gap-2.5">
+            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <span className="text-sm font-medium">
+              {t('cleanup.progress', { current: cleanupProgress.current, total: cleanupProgress.total })}
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-1.5">
+            <div
+              className="bg-primary h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${(cleanupProgress.current / cleanupProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground truncate">{cleanupProgress.path}</p>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {cleanableItems.length === 0 && !isRunning ? (
@@ -264,26 +293,14 @@ export function Scanner() {
         ) : null}
       </div>
 
-      {/* Cleanup confirmation dialog */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('scanner.confirmCleanup')}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {t('scanner.confirmCleanupDesc', { count: selectedPaths.size })}
-          </p>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="secondary" onClick={() => handleCleanup('trash')}>
-              {t('scanner.moveToTrash')}
-            </Button>
-            <Button variant="destructive" onClick={() => handleCleanup('delete')}>
-              {t('scanner.permanentDelete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Cleanup preview dialog */}
+      <CleanupPreviewDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        items={cleanableItems.filter((i) => selectedPaths.has(i.path))}
+        selectedPaths={selectedPaths}
+        onConfirm={(op) => handleCleanup(op)}
+      />
     </div>
   )
 }
@@ -299,6 +316,8 @@ function EmptyState() {
   )
 }
 
+const ROW_HEIGHT = 52
+
 function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
   items: CleanableItem[]
   selectedPaths: Set<string>
@@ -306,80 +325,93 @@ function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
   onSelectAll: () => void
 }) {
   const { t } = useTranslation()
-  return (
-    <table className="w-full text-sm">
-      <thead className="sticky top-0 bg-background border-b border-border">
-        <tr>
-          <th className="w-10 px-3 py-2">
-            <button onClick={onSelectAll}>
-              {selectedPaths.size === items.length && items.length > 0
-                ? <CheckSquare className="w-4 h-4 text-primary" />
-                : <Square className="w-4 h-4 text-muted-foreground" />}
-            </button>
-          </th>
-          <th className="text-left px-3 py-2">{t('scanner.name')}</th>
-          <th className="text-right px-3 py-2 w-24">{t('scanner.size')}</th>
-          <th className="text-left px-3 py-2 w-32">{t('scanner.riskLevel')}</th>
-          <th className="text-left px-3 py-2 w-40">{t('scanner.reason')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <CleanableRow
-            key={item.path}
-            item={item}
-            selected={selectedPaths.has(item.path)}
-            onToggleSelect={onToggleSelect}
-          />
-        ))}
-      </tbody>
-    </table>
-  )
-}
+  const parentRef = useRef<HTMLDivElement>(null)
 
-function CleanableRow({ item, selected, onToggleSelect }: {
-  item: CleanableItem
-  selected: boolean
-  onToggleSelect: (path: string) => void
-}) {
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  })
+
   return (
-    <tr className={`border-b border-border hover:bg-muted/50 ${selected ? 'bg-primary/5' : ''}`}>
-      <td className="px-3 py-2">
-        <button onClick={() => onToggleSelect(item.path)}>
-          {selected
-            ? <CheckSquare className="w-4 h-4 text-primary" />
-            : <Square className="w-4 h-4 text-muted-foreground" />}
-        </button>
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex flex-col">
-          <span className={item.isDir ? 'text-primary font-medium' : ''}>
-            {item.isDir ? '📁 ' : '📄 '}
-            {item.name}
-          </span>
-          <span className="text-xs text-muted-foreground truncate max-w-xs" title={item.path}>
-            {item.path}
-          </span>
+    <div className="flex flex-col h-full">
+      {/* Fixed header */}
+      <div className="flex items-center border-b border-border bg-background text-sm font-medium">
+        <div className="w-10 px-3 py-2 flex-shrink-0">
+          <button onClick={onSelectAll}>
+            {selectedPaths.size === items.length && items.length > 0
+              ? <CheckSquare className="w-4 h-4 text-primary" />
+              : <Square className="w-4 h-4 text-muted-foreground" />}
+          </button>
         </div>
-      </td>
-      <td className="text-right px-3 py-2 text-muted-foreground">
-        {formatBytes(item.size)}
-      </td>
-      <td className="px-3 py-2">
-        <RiskBadge risk={item.riskLevel as RiskLevel} />
-      </td>
-      <td className="px-3 py-2 text-muted-foreground text-xs">
-        <span className="line-clamp-2">{item.reason}</span>
-      </td>
-    </tr>
+        <div className="flex-1 px-3 py-2">{t('scanner.name')}</div>
+        <div className="w-24 text-right px-3 py-2 flex-shrink-0">{t('scanner.size')}</div>
+        <div className="w-32 px-3 py-2 flex-shrink-0">{t('scanner.riskLevel')}</div>
+        <div className="w-40 px-3 py-2 flex-shrink-0">{t('scanner.reason')}</div>
+      </div>
+
+      {/* Virtualized body */}
+      <div ref={parentRef} className="flex-1 overflow-auto">
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const item = items[virtualRow.index]
+            const selected = selectedPaths.has(item.path)
+            return (
+              <div
+                key={item.path}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+                className={`flex items-center border-b border-border hover:bg-muted/50 ${selected ? 'bg-primary/5' : ''}`}
+              >
+                <div className="w-10 px-3 flex-shrink-0">
+                  <button onClick={() => onToggleSelect(item.path)}>
+                    {selected
+                      ? <CheckSquare className="w-4 h-4 text-primary" />
+                      : <Square className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+                </div>
+                <div className="flex-1 px-3 min-w-0">
+                  <div className="flex flex-col">
+                    <span className={item.isDir ? 'text-primary font-medium' : ''}>
+                      {item.isDir ? '📁 ' : '📄 '}
+                      {item.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate" title={item.path}>
+                      {item.path}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-24 text-right px-3 text-muted-foreground flex-shrink-0">
+                  {formatBytes(item.size)}
+                </div>
+                <div className="w-32 px-3 flex-shrink-0">
+                  <RiskBadge risk={item.riskLevel as RiskLevel} />
+                </div>
+                <div className="w-40 px-3 text-muted-foreground text-xs flex-shrink-0">
+                  <span className="line-clamp-2">{item.reason}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }
 
 function RiskBadge({ risk }: { risk: RiskLevel }) {
+  const { t } = useTranslation()
   const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-    safe: { icon: <ShieldCheck className="w-3 h-3" />, color: 'text-safe border-safe/30', label: 'Safe' },
-    caution: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-caution border-caution/30', label: 'Caution' },
-    dangerous: { icon: <ShieldAlert className="w-3 h-3" />, color: 'text-destructive border-destructive/30', label: 'Dangerous' },
+    safe: { icon: <ShieldCheck className="w-3 h-3" />, color: 'text-safe border-safe/30', label: t('scanner.risk.safe') },
+    caution: { icon: <AlertTriangle className="w-3 h-3" />, color: 'text-caution border-caution/30', label: t('scanner.risk.caution') },
+    dangerous: { icon: <ShieldAlert className="w-3 h-3" />, color: 'text-destructive border-destructive/30', label: t('scanner.risk.dangerous') },
   }
   const c = config[risk]
   if (!c) return null
