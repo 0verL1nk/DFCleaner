@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useLLMConfigs, useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate, usePerformUpdate } from '@/hooks/wails'
+import { useActiveLLMConfig, useSaveLLMConfig, useTestLLMConnection, useSetSetting, useCheckForUpdate, usePerformUpdate } from '@/hooks/wails'
 import * as App from '../../wailsjs/go/main/App'
 import { useSettingsStore } from '@/stores/settings'
 import { Save, Loader2, CheckCircle, AlertCircle, RefreshCw, Download } from 'lucide-react'
@@ -9,12 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
-  const { data: configs } = useLLMConfigs()
   const { data: activeConfig } = useActiveLLMConfig()
   const saveConfig = useSaveLLMConfig()
   const testConnection = useTestLLMConnection()
@@ -81,25 +79,6 @@ export function Settings() {
       {/* LLM Config */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">{t('settings.llm.title')}</h2>
-
-        {configs && configs.length > 0 && (
-          <div className="space-y-2">
-            {configs.map((cfg: any) => (
-              <div key={`${cfg.provider}-${cfg.modelName}`} className="flex items-center gap-3 p-3 rounded-lg border border-border">
-                <span className="text-sm font-medium">{cfg.provider}</span>
-                <span className="text-sm text-muted-foreground">{cfg.modelName}</span>
-                <span className="text-xs text-muted-foreground flex-1 truncate">{cfg.endpoint}</span>
-                {cfg.isActive && (
-                  <Badge variant="secondary" className="text-safe">
-                    <CheckCircle className="w-3 h-3 mr-1" /> {t('settings.llm.active')}
-                  </Badge>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Separator />
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
