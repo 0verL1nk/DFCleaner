@@ -1,15 +1,11 @@
 package main
 
 import (
-	_ "embed"
 	"os"
 
 	"fyne.io/systray"
 	wailsrt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-//go:embed build/appicon.png
-var trayIconData []byte
 
 func (a *App) startTray() {
 	systray.Run(func() {
