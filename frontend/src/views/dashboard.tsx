@@ -12,8 +12,10 @@ export function Dashboard() {
   const { data: drives } = useSystemDrives()
   const { data: cleanableSize } = useCleanableSize()
 
-  const rootDrive = drives?.find((d: any) => d.isSystem) || drives?.[0]
+  const allDrives = drives ?? []
   const totalFreed = cleanups?.reduce((sum: number, c: any) => sum + (c.freedBytes || 0), 0) ?? 0
+  const totalDisk = allDrives.reduce((sum: number, d: any) => sum + (d.total || 0), 0)
+  const totalUsed = allDrives.reduce((sum: number, d: any) => sum + (d.used || 0), 0)
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -34,8 +36,8 @@ export function Dashboard() {
         <StatCard
           icon={<HardDrive className="w-5 h-5" />}
           label={t('dashboard.diskUsage')}
-          value={rootDrive ? formatBytes(rootDrive.used) : '--'}
-          sub={rootDrive ? `${formatBytes(rootDrive.total)} total` : undefined}
+          value={totalDisk > 0 ? formatBytes(totalUsed) : '--'}
+          sub={totalDisk > 0 ? `${formatBytes(totalDisk)} total` : undefined}
         />
         <StatCard
           icon={<Zap className="w-5 h-5" />}
@@ -50,6 +52,29 @@ export function Dashboard() {
           sub={totalFreed > 0 ? `${formatBytes(totalFreed)} freed` : undefined}
         />
       </div>
+
+      {allDrives.length > 1 && (
+        <div className="grid grid-cols-2 gap-3">
+          {allDrives.map((d: any) => (
+            <div key={d.path} className="p-3 rounded-lg border border-border bg-card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">{d.label || d.path}</span>
+                <span className="text-xs text-muted-foreground">{formatBytes(d.free)} free</span>
+              </div>
+              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${d.total > 0 ? (d.used / d.total * 100) : 0}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                <span>{formatBytes(d.used)} used</span>
+                <span>{formatBytes(d.total)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold mb-3">{t('dashboard.recentCleanups')}</h2>
