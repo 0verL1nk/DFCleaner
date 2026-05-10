@@ -189,6 +189,11 @@ func (a *App) runSmartScan(ctx context.Context, rootPath string) {
 			break
 		}
 
+		// Log raw chunk for debugging empty streams
+		if stepCount == 0 && chunk.Content == "" && len(chunk.ToolCalls) == 0 {
+			a.logger.Printf("[SmartScan] WARNING: first chunk is empty (no content, no tool calls)")
+		}
+
 		// Emit Agent's reasoning text as current activity
 		if chunk.Content != "" {
 			mu.Lock()
