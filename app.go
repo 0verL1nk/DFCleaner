@@ -57,6 +57,8 @@ func (a *App) startup(ctx context.Context) {
 
 	a.logger.Println("=== DFCleaner starting ===")
 
+	updater.CleanOldBackup()
+
 	db, err := store.InitDB("dfcleaner.db")
 	if err != nil {
 		a.logger.Printf("FATAL: failed to init db: %v", err)

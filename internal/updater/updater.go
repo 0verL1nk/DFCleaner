@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,13 +48,35 @@ func New(ctx context.Context, logger *log.Logger) *Updater {
 	return &Updater{ctx: ctx, logger: logger}
 }
 
+// CleanOldBackup removes leftover .old backup from a previous update.
+// Call on startup after the new version has been confirmed running.
+func CleanOldBackup() {
+	selfPath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	selfPath, _ = filepath.EvalSymlinks(selfPath)
+	_ = os.Remove(selfPath + ".old")
+
+	if runtime.GOOS == "darwin" {
+		appPath := findAppBundle(selfPath)
+		if appPath != "" {
+			_ = os.RemoveAll(appPath + ".old")
+		}
+	}
+}
+
 func (u *Updater) CheckForUpdate(currentVer string) (*UpdateInfo, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get("https://api.github.com/repos/0verL1nk/DFCleaner/releases/latest")
 	if err != nil {
 		return nil, fmt.Errorf("check update: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("github API returned %s", resp.Status)
+	}
 
 	var release ghRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
@@ -68,7 +91,7 @@ func (u *Updater) CheckForUpdate(currentVer string) (*UpdateInfo, error) {
 
 	current := strings.TrimPrefix(currentVer, "v")
 	latest := strings.TrimPrefix(release.TagName, "v")
-	info.HasUpdate = latest != "" && latest != current && latest > current
+	info.HasUpdate = latest != "" && latest != current && semverGT(latest, current)
 
 	info.DownloadURL = u.findPlatformAsset(release.Assets)
 	if info.DownloadURL == "" {
@@ -106,14 +129,19 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 		return fmt.Errorf("download: %w", err)
 	}
 
+	stat, err := os.Stat(archivePath)
+	if err != nil || stat.Size() == 0 {
+		return fmt.Errorf("downloaded file is empty or missing")
+	}
+
 	u.emitProgress("extracting", 60, "Extracting...")
-	binaryPath, err := u.extract(archivePath, tmpDir)
+	extractedPath, err := u.extract(archivePath, tmpDir)
 	if err != nil {
 		return fmt.Errorf("extract: %w", err)
 	}
 
-	u.emitProgress("replacing", 80, "Replacing binary...")
-	if err := u.replace(selfPath, binaryPath); err != nil {
+	u.emitProgress("replacing", 80, "Replacing...")
+	if err := u.replace(selfPath, extractedPath); err != nil {
 		return fmt.Errorf("replace: %w", err)
 	}
 
@@ -123,6 +151,52 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 	time.Sleep(500 * time.Millisecond)
 	return u.restart(selfPath)
 }
+
+// --- Version comparison (semver) ---
+
+func semverGT(a, b string) bool {
+	aParts := parseSemver(a)
+	bParts := parseSemver(b)
+	maxLen := len(aParts)
+	if len(bParts) > maxLen {
+		maxLen = len(bParts)
+	}
+	for i := 0; i < maxLen; i++ {
+		av, bv := 0, 0
+		if i < len(aParts) {
+			av = aParts[i]
+		}
+		if i < len(bParts) {
+			bv = bParts[i]
+		}
+		if av > bv {
+			return true
+		}
+		if av < bv {
+			return false
+		}
+	}
+	return false
+}
+
+func parseSemver(v string) []int {
+	if idx := strings.Index(v, "-"); idx >= 0 {
+		v = v[:idx]
+	}
+	parts := strings.Split(v, ".")
+	result := make([]int, 0, len(parts))
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			result = append(result, 0)
+		} else {
+			result = append(result, n)
+		}
+	}
+	return result
+}
+
+// --- Platform asset matching ---
 
 func (u *Updater) findPlatformAsset(assets []struct {
 	Name string `json:"name"`
@@ -146,10 +220,13 @@ func (u *Updater) findPlatformAsset(assets []struct {
 	return ""
 }
 
+// --- Download ---
+
 func (u *Updater) download(url, dest string) error {
 	u.emitProgress("downloading", 0, "Downloading...")
 
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
@@ -178,6 +255,8 @@ func (u *Updater) download(url, dest string) error {
 	return err
 }
 
+// --- Extraction ---
+
 func (u *Updater) extract(archivePath, destDir string) (string, error) {
 	if strings.HasSuffix(archivePath, ".zip") {
 		return u.extractZip(archivePath, destDir)
@@ -199,6 +278,13 @@ func (u *Updater) extractTarGz(archivePath, destDir string) (string, error) {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
+
+	// macOS: extract entire .app bundle
+	if runtime.GOOS == "darwin" {
+		return u.extractMacOSAppBundle(tr, destDir)
+	}
+
+	// Linux/Windows: extract single binary
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -218,23 +304,71 @@ func (u *Updater) extractTarGz(archivePath, destDir string) (string, error) {
 		}
 
 		outPath := filepath.Join(destDir, name)
-		outF, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-		if err != nil {
+		if err := writeTarFile(tr, outPath, hdr.FileInfo().Mode()); err != nil {
 			return "", err
 		}
-		if _, err := io.Copy(outF, tr); err != nil {
-			outF.Close()
-			return "", err
-		}
-		outF.Close()
 
-		if !strings.Contains(hdr.Name, ".app/") || strings.HasSuffix(hdr.Name, "DFCleaner") {
-			u.logger.Printf("[Update] extracted binary: %s", outPath)
-			return outPath, nil
-		}
+		u.logger.Printf("[Update] extracted binary: %s", outPath)
+		return outPath, nil
 	}
 
 	return "", fmt.Errorf("no binary found in archive")
+}
+
+func (u *Updater) extractMacOSAppBundle(tr *tar.Reader, destDir string) (string, error) {
+	var binaryPath string
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+
+		targetPath := filepath.Join(destDir, hdr.Name)
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(targetPath, hdr.FileInfo().Mode()); err != nil {
+				return "", err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return "", err
+			}
+			if err := writeTarFile(tr, targetPath, hdr.FileInfo().Mode()); err != nil {
+				return "", err
+			}
+			if strings.HasSuffix(hdr.Name, "Contents/MacOS/DFCleaner") {
+				binaryPath = targetPath
+			}
+		case tar.TypeSymlink:
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return "", err
+			}
+			_ = os.Symlink(hdr.Linkname, targetPath)
+		}
+	}
+
+	if binaryPath == "" {
+		return "", fmt.Errorf("no DFCleaner binary found in .app bundle")
+	}
+
+	appDir := filepath.Join(destDir, "DFCleaner.app")
+	u.logger.Printf("[Update] extracted macOS bundle: %s (binary: %s)", appDir, binaryPath)
+	return appDir, nil
+}
+
+func writeTarFile(tr *tar.Reader, outPath string, mode os.FileMode) error {
+	outF, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(outF, tr)
+	outF.Close()
+	return err
 }
 
 func (u *Updater) extractZip(archivePath, destDir string) (string, error) {
@@ -255,7 +389,11 @@ func (u *Updater) extractZip(archivePath, destDir string) (string, error) {
 		}
 
 		outPath := filepath.Join(destDir, name)
-		outF, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			return "", err
+		}
+
+		outF, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.FileInfo().Mode())
 		if err != nil {
 			return "", err
 		}
@@ -282,10 +420,28 @@ func (u *Updater) extractZip(archivePath, destDir string) (string, error) {
 	return "", fmt.Errorf("no binary found in archive")
 }
 
-func (u *Updater) replace(selfPath, newBinary string) error {
+// --- Replace ---
+
+func (u *Updater) replace(selfPath, newArtifact string) error {
+	info, err := os.Stat(newArtifact)
+	if err != nil {
+		return fmt.Errorf("stat new artifact: %w", err)
+	}
+
+	if info.IsDir() {
+		return u.replaceAppBundle(selfPath, newArtifact)
+	}
+	return u.replaceBinary(selfPath, newArtifact)
+}
+
+func (u *Updater) replaceBinary(selfPath, newBinary string) error {
 	newData, err := os.ReadFile(newBinary)
 	if err != nil {
 		return fmt.Errorf("read new binary: %w", err)
+	}
+
+	if len(newData) == 0 {
+		return fmt.Errorf("new binary is empty")
 	}
 
 	backupPath := selfPath + ".old"
@@ -306,14 +462,59 @@ func (u *Updater) replace(selfPath, newBinary string) error {
 		}
 	}
 
-	_ = os.Remove(backupPath)
-	u.logger.Printf("[Update] binary replaced successfully")
+	// Keep .old — cleaned on next startup via CleanOldBackup()
+	u.logger.Printf("[Update] binary replaced (backup at %s)", backupPath)
 	return nil
 }
+
+func (u *Updater) replaceAppBundle(selfPath, newAppBundle string) error {
+	appPath := findAppBundle(selfPath)
+	if appPath == "" {
+		return fmt.Errorf("running outside .app bundle, cannot replace bundle")
+	}
+
+	backupPath := appPath + ".old"
+	_ = os.RemoveAll(backupPath)
+
+	if err := os.Rename(appPath, backupPath); err != nil {
+		return fmt.Errorf("rename old .app: %w", err)
+	}
+
+	if err := copyDir(newAppBundle, appPath); err != nil {
+		_ = os.RemoveAll(appPath)
+		_ = os.Rename(backupPath, appPath)
+		return fmt.Errorf("copy new .app: %w", err)
+	}
+
+	u.logger.Printf("[Update] .app bundle replaced (backup at %s)", backupPath)
+	return nil
+}
+
+// --- Restart ---
 
 func (u *Updater) restart(selfPath string) error {
 	u.logger.Printf("[Update] restarting: %s", selfPath)
 
+	// macOS: use `open` to launch .app through LaunchServices
+	if runtime.GOOS == "darwin" {
+		appPath := findAppBundle(selfPath)
+		if appPath != "" {
+			u.logger.Printf("[Update] restarting via open: %s", appPath)
+			cmd := exec.Command("open", appPath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
+				u.logger.Printf("[Update] open failed, falling back to direct exec: %v", err)
+				return u.restartDirect(selfPath)
+			}
+			os.Exit(0)
+		}
+	}
+
+	return u.restartDirect(selfPath)
+}
+
+func (u *Updater) restartDirect(selfPath string) error {
 	cmd := exec.Command(selfPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -325,6 +526,37 @@ func (u *Updater) restart(selfPath string) error {
 
 	os.Exit(0)
 	return nil
+}
+
+// --- Helpers ---
+
+func findAppBundle(exePath string) string {
+	idx := strings.Index(exePath, ".app/Contents/MacOS/")
+	if idx < 0 {
+		return ""
+	}
+	return exePath[:idx+4]
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, _ := filepath.Rel(src, path)
+		targetPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(targetPath, data, info.Mode())
+	})
 }
 
 func (u *Updater) emitProgress(phase string, progress float64, message string) {
