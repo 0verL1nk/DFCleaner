@@ -10,10 +10,10 @@ import (
 
 	"dfcleaner/internal/scanner"
 
+	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool/utils"
-	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -128,20 +128,35 @@ func TestSmartScanAgentMarksCleanableItem(t *testing.T) {
 		toolsConfig.Tools = append(toolsConfig.Tools, t)
 	}
 
-	agent, err := react.NewAgent(context.Background(), &react.AgentConfig{
-		Model:       mockModel,
-		ToolsConfig: toolsConfig,
-		MaxStep:     10,
+	agent, err := adk.NewChatModelAgent(context.Background(), &adk.ChatModelAgentConfig{
+		Name:          "test-agent",
+		Description:   "test",
+		Instruction:   "You are a test agent.",
+		Model:         mockModel,
+		ToolsConfig:   adk.ToolsConfig{ToolsNodeConfig: toolsConfig},
+		MaxIterations: 10,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create agent: %v", err)
 	}
 
-	resp, err := agent.Generate(context.Background(), []*schema.Message{
-		schema.UserMessage(fmt.Sprintf("Explore: %s", dir)),
+	iter := agent.Run(context.Background(), &adk.AgentInput{
+		Messages:        []*schema.Message{schema.UserMessage(fmt.Sprintf("Explore: %s", dir))},
+		EnableStreaming: false,
 	})
-	if err != nil {
-		t.Fatalf("Agent error: %v", err)
+
+	var resp *schema.Message
+	for {
+		event, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if event.Err != nil {
+			t.Fatalf("Event error: %v", event.Err)
+		}
+		if event.Output != nil && event.Output.MessageOutput != nil && event.Output.MessageOutput.Message != nil {
+			resp = event.Output.MessageOutput.Message
+		}
 	}
 
 	if resp == nil || resp.Content == "" {
@@ -231,20 +246,30 @@ func TestSmartScanAgentRejectsDangerousMark(t *testing.T) {
 		toolsConfig.Tools = append(toolsConfig.Tools, t)
 	}
 
-	agent, err := react.NewAgent(context.Background(), &react.AgentConfig{
-		Model:       mockModel,
-		ToolsConfig: toolsConfig,
-		MaxStep:     10,
+	agent, err := adk.NewChatModelAgent(context.Background(), &adk.ChatModelAgentConfig{
+		Name:          "test-agent",
+		Description:   "test",
+		Instruction:   "You are a test agent.",
+		Model:         mockModel,
+		ToolsConfig:   adk.ToolsConfig{ToolsNodeConfig: toolsConfig},
+		MaxIterations: 10,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create agent: %v", err)
 	}
 
-	_, err = agent.Generate(context.Background(), []*schema.Message{
-		schema.UserMessage(fmt.Sprintf("Explore: %s", dir)),
+	iter := agent.Run(context.Background(), &adk.AgentInput{
+		Messages:        []*schema.Message{schema.UserMessage(fmt.Sprintf("Explore: %s", dir))},
+		EnableStreaming: false,
 	})
-	if err != nil {
-		t.Fatalf("Agent error: %v", err)
+	for {
+		event, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if event.Err != nil {
+			t.Fatalf("Event error: %v", event.Err)
+		}
 	}
 
 	mu.Lock()

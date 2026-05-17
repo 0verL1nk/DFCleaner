@@ -517,15 +517,15 @@ func TestToolViewResult_LastPage(t *testing.T) {
 
 // --- RegisterTools tests ---
 
-func TestRegisterTools_ReturnsSixTools(t *testing.T) {
+func TestRegisterTools_ReturnsAllTools(t *testing.T) {
 	s := New(context.Background())
 	tools, err := RegisterTools(s)
 
 	if err != nil {
 		t.Fatalf("RegisterTools error: %v", err)
 	}
-	if len(tools) != 6 {
-		t.Errorf("expected 6 tools, got %d", len(tools))
+	if len(tools) != 16 {
+		t.Errorf("expected 16 tools, got %d", len(tools))
 	}
 }
 
@@ -538,12 +538,22 @@ func TestRegisterTools_AllToolsHaveInfo(t *testing.T) {
 
 	ctx := context.Background()
 	expectedNames := map[string]bool{
-		"scan_directory":  false,
-		"get_file_info":   false,
-		"get_large_files": false,
-		"get_old_files":   false,
-		"find_duplicates": false,
-		"view_result":     false,
+		"scan_directory":        false,
+		"get_file_info":         false,
+		"get_large_files":       false,
+		"get_old_files":         false,
+		"find_duplicates":       false,
+		"view_result":           false,
+		"read_file":             false,
+		"read_file_tail":        false,
+		"search_files":          false,
+		"grep_content":          false,
+		"get_directory_size":    false,
+		"analyze_disk_usage":    false,
+		"get_system_info":       false,
+		"calculate_hash":        false,
+		"check_package_manager": false,
+		"get_path_info":         false,
 	}
 
 	for _, tl := range tools {

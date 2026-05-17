@@ -78,7 +78,21 @@ func RegisterTools(s *Scanner) ([]tool.BaseTool, error) {
 		return nil, err
 	}
 
-	return []tool.BaseTool{scanDir, getFileInfo, getLargeFiles, getOldFiles, findDuplicates, viewResult}, nil
+	tools := []tool.BaseTool{scanDir, getFileInfo, getLargeFiles, getOldFiles, findDuplicates, viewResult}
+
+	contentTools, err := RegisterContentTools(s)
+	if err != nil {
+		return nil, fmt.Errorf("register content tools: %w", err)
+	}
+	tools = append(tools, contentTools...)
+
+	analysisTools, err := RegisterAnalysisTools(s)
+	if err != nil {
+		return nil, fmt.Errorf("register analysis tools: %w", err)
+	}
+	tools = append(tools, analysisTools...)
+
+	return tools, nil
 }
 
 // --- Input/Output types ---
