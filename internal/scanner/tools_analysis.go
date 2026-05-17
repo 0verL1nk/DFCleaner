@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -209,21 +208,15 @@ type GetSystemInfoOutput struct {
 }
 
 func (s *Scanner) toolGetSystemInfo(_ context.Context, _ struct{}) (*GetSystemInfoOutput, error) {
-	var stat syscall.Statfs_t
-	home, _ := os.UserHomeDir()
-	if home == "" {
-		home = "/"
-	}
-	syscall.Statfs(home, &stat)
-
+	total, free, used := getDiskInfo()
 	hostname, _ := os.Hostname()
 
 	return &GetSystemInfoOutput{
 		OS:        runtime.GOOS,
 		Arch:      runtime.GOARCH,
-		TotalDisk: int64(stat.Blocks) * int64(stat.Bsize),
-		FreeDisk:  int64(stat.Bavail) * int64(stat.Bsize),
-		UsedDisk:  (int64(stat.Blocks) - int64(stat.Bfree)) * int64(stat.Bsize),
+		TotalDisk: total,
+		FreeDisk:  free,
+		UsedDisk:  used,
 		HostName:  hostname,
 	}, nil
 }
