@@ -32,8 +32,14 @@ jobs:
       - name: Build frontend
         run: cd frontend && pnpm install --frozen-lockfile && pnpm build
 
-      - name: Go Vet
+      - name: Go Vet (Linux)
         run: go vet -tags webkit2_41 ./...
+
+      - name: Go Vet (macOS)
+        run: GOOS=darwin GOARCH=arm64 go vet -tags webkit2_41 ./...
+
+      - name: Go Vet (Windows)
+        run: GOOS=windows GOARCH=amd64 go vet -tags webkit2_41 ./...
 
       - name: Go Test
         run: go test -tags webkit2_41 ./... -v -race -timeout 60s
