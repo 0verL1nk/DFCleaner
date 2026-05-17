@@ -148,6 +148,16 @@
     "risk": "风险",
     "drillDown": "点击目录深入查看"
   },
+  "category": {
+    "cache": "缓存",
+    "temp": "临时文件",
+    "log": "日志",
+    "build": "构建产物",
+    "download": "下载",
+    "media": "媒体",
+    "source": "源码",
+    "other": "其他"
+  },
   "scheduler": {
     "title": "定时清理",
     "description": "配置自动扫描和定时清理任务。",

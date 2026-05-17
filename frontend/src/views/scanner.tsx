@@ -316,7 +316,7 @@ function EmptyState() {
   )
 }
 
-const ROW_HEIGHT = 52
+const ROW_HEIGHT = 64
 
 function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
   items: CleanableItem[]
@@ -345,10 +345,10 @@ function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
               : <Square className="w-4 h-4 text-muted-foreground" />}
           </button>
         </div>
-        <div className="flex-1 px-3 py-2">{t('scanner.name')}</div>
-        <div className="w-24 text-right px-3 py-2 flex-shrink-0">{t('scanner.size')}</div>
-        <div className="w-32 px-3 py-2 flex-shrink-0">{t('scanner.riskLevel')}</div>
-        <div className="w-40 px-3 py-2 flex-shrink-0">{t('scanner.reason')}</div>
+        <div className="w-64 px-3 py-2 flex-shrink-0">{t('scanner.name')}</div>
+        <div className="w-20 text-right px-3 py-2 flex-shrink-0">{t('scanner.size')}</div>
+        <div className="w-28 px-3 py-2 flex-shrink-0">{t('scanner.riskLevel')}</div>
+        <div className="flex-1 px-3 py-2 min-w-[200px]">{t('scanner.reason')}</div>
       </div>
 
       {/* Virtualized body */}
@@ -377,7 +377,7 @@ function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
                       : <Square className="w-4 h-4 text-muted-foreground" />}
                   </button>
                 </div>
-                <div className="flex-1 px-3 min-w-0">
+                <div className="w-64 px-3 min-w-0 flex-shrink-0">
                   <div className="flex flex-col">
                     <span className={item.isDir ? 'text-primary font-medium' : ''}>
                       {item.isDir ? '📁 ' : '📄 '}
@@ -388,14 +388,14 @@ function CleanableTable({ items, selectedPaths, onToggleSelect, onSelectAll }: {
                     </span>
                   </div>
                 </div>
-                <div className="w-24 text-right px-3 text-muted-foreground flex-shrink-0">
+                <div className="w-20 text-right px-3 text-muted-foreground flex-shrink-0">
                   {formatBytes(item.size)}
                 </div>
-                <div className="w-32 px-3 flex-shrink-0">
+                <div className="w-28 px-3 flex-shrink-0">
                   <RiskBadge risk={item.riskLevel as RiskLevel} />
                 </div>
-                <div className="w-40 px-3 text-muted-foreground text-xs flex-shrink-0">
-                  <span className="line-clamp-2">{item.reason}</span>
+                <div className="flex-1 px-3 text-muted-foreground text-xs min-w-[200px]">
+                  <span className="line-clamp-3" title={item.reason}>{item.reason}</span>
                 </div>
               </div>
             )

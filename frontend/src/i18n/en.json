@@ -148,6 +148,16 @@
     "risk": "Risk",
     "drillDown": "Click directory to explore"
   },
+  "category": {
+    "cache": "Cache",
+    "temp": "Temp Files",
+    "log": "Logs",
+    "build": "Build Artifacts",
+    "download": "Downloads",
+    "media": "Media",
+    "source": "Source Code",
+    "other": "Other"
+  },
   "scheduler": {
     "title": "Scheduled Cleaning",
     "description": "Configure automatic scans and cleanup on a schedule.",

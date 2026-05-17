@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ChevronRight, ChevronDown, Folder, File, Trash2, ShieldCheck, AlertTriangle } from 'lucide-react'
-import { formatBytes } from '@/components/treemap/treemap-utils'
+import { formatBytes } from '@/lib/format'
 
 interface CleanupPreviewDialogProps {
   open: boolean
@@ -132,7 +132,7 @@ export function CleanupPreviewDialog({ open, onOpenChange, items, selectedPaths,
 
         <Separator />
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:gap-3">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             {t('common.cancel')}
           </Button>
