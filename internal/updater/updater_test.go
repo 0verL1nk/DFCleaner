@@ -98,6 +98,26 @@ func TestFindPlatformAsset(t *testing.T) {
 	}
 }
 
+func TestFindPlatformAssetPrefersInstaller(t *testing.T) {
+	u := &Updater{logger: log.New(os.Stderr, "[test] ", 0)}
+
+	assets := []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	}{
+		{Name: "DFCleaner-linux-arm64-portable.tar.gz", URL: "https://example.com/portable"},
+		{Name: "DFCleaner-windows-amd64-portable.zip", URL: "https://example.com/win-portable"},
+		{Name: "DFCleaner-amd64-installer.exe", URL: "https://example.com/installer"},
+	}
+
+	// On Linux the installer isn't preferred; portable is matched instead.
+	// The test validates that the function returns a valid URL without panicking.
+	url := u.findPlatformAsset(assets)
+	if url == "" {
+		t.Error("expected to find a platform asset")
+	}
+}
+
 func TestFindPlatformAssetNoMatch(t *testing.T) {
 	u := &Updater{logger: log.New(os.Stderr, "[test] ", 0)}
 

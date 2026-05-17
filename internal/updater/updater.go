@@ -112,6 +112,19 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 		return fmt.Errorf("no download URL")
 	}
 
+	switch {
+	case strings.Contains(info.DownloadURL, "-installer"):
+		return u.performInstallerUpdate(info)
+	case strings.HasSuffix(info.DownloadURL, ".dmg"):
+		return u.performDMGUpdate(info)
+	default:
+		return u.performPortableUpdate(info)
+	}
+}
+
+// performPortableUpdate downloads a portable archive, extracts it, and
+// replaces the running binary (Linux and fallback for other platforms).
+func (u *Updater) performPortableUpdate(info *UpdateInfo) error {
 	selfPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("get executable path: %w", err)
@@ -121,7 +134,7 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 		return fmt.Errorf("resolve symlink: %w", err)
 	}
 
-	u.logger.Printf("[Update] starting update: self=%s url=%s", selfPath, info.DownloadURL)
+	u.logger.Printf("[Update] starting portable update: self=%s url=%s", selfPath, info.DownloadURL)
 
 	tmpDir, err := os.MkdirTemp("", "dfcleaner-update-*")
 	if err != nil {
@@ -130,7 +143,6 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Preserve extension from URL so extract() can detect format
 	ext := ".tar.gz"
 	if strings.HasSuffix(info.DownloadURL, ".zip") {
 		ext = ".zip"
@@ -171,6 +183,151 @@ func (u *Updater) PerformUpdate(info *UpdateInfo) error {
 
 	time.Sleep(500 * time.Millisecond)
 	u.logger.Printf("[Update] update succeeded, restarting...")
+	return u.restart(selfPath)
+}
+
+// performInstallerUpdate downloads a NSIS installer and runs it silently.
+// The installer handles file replacement and app restart on Windows.
+func (u *Updater) performInstallerUpdate(info *UpdateInfo) error {
+	selfPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("get executable path: %w", err)
+	}
+	selfPath, err = filepath.EvalSymlinks(selfPath)
+	if err != nil {
+		return fmt.Errorf("resolve symlink: %w", err)
+	}
+
+	u.logger.Printf("[Update] starting installer update: self=%s url=%s", selfPath, info.DownloadURL)
+
+	tmpDir, err := os.MkdirTemp("", "dfcleaner-update-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+
+	installerPath := filepath.Join(tmpDir, "DFCleaner-installer.exe")
+	if err := u.download(info.DownloadURL, installerPath); err != nil {
+		os.RemoveAll(tmpDir)
+		return fmt.Errorf("download installer: %w", err)
+	}
+
+	stat, err := os.Stat(installerPath)
+	if err != nil || stat.Size() == 0 {
+		os.RemoveAll(tmpDir)
+		return fmt.Errorf("downloaded installer is empty or missing")
+	}
+	u.logger.Printf("[Update] installer downloaded: %d bytes", stat.Size())
+
+	u.emitProgress("installing", 80, "Launching installer...")
+
+	// Launch NSIS installer silently with elevation via PowerShell.
+	// /S = silent, /D= = install directory (must be last parameter).
+	installDir := filepath.Dir(selfPath)
+	psScript := fmt.Sprintf(
+		`Start-Process '%s' -ArgumentList '/S','/D=%s' -Verb RunAs`,
+		installerPath, installDir,
+	)
+	cmd := exec.Command("powershell", "-Command", psScript)
+	if err := cmd.Start(); err != nil {
+		os.RemoveAll(tmpDir)
+		return fmt.Errorf("launch installer: %w", err)
+	}
+
+	u.logger.Printf("[Update] installer launched, exiting app")
+
+	u.emitProgress("restarting", 100, "Installer running...")
+	wailsrt.EventsEmit(u.ctx, "update:complete")
+	time.Sleep(1 * time.Second)
+	os.Exit(0)
+	return nil
+}
+
+// performDMGUpdate downloads a macOS DMG, mounts it, replaces the .app bundle.
+func (u *Updater) performDMGUpdate(info *UpdateInfo) error {
+	selfPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("get executable path: %w", err)
+	}
+	selfPath, err = filepath.EvalSymlinks(selfPath)
+	if err != nil {
+		return fmt.Errorf("resolve symlink: %w", err)
+	}
+
+	appPath := findAppBundle(selfPath)
+	if appPath == "" {
+		// Not running from .app bundle — fall back to portable
+		u.logger.Printf("[Update] not in .app bundle, falling back to portable update")
+		return u.performPortableUpdate(info)
+	}
+
+	u.logger.Printf("[Update] starting DMG update: app=%s url=%s", appPath, info.DownloadURL)
+
+	tmpDir, err := os.MkdirTemp("", "dfcleaner-update-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	var mountPoint string
+	defer func() {
+		if mountPoint != "" {
+			exec.Command("hdiutil", "detach", mountPoint, "-quiet").Run()
+		}
+		os.RemoveAll(tmpDir)
+	}()
+
+	dmgPath := filepath.Join(tmpDir, "update.dmg")
+	if err := u.download(info.DownloadURL, dmgPath); err != nil {
+		return fmt.Errorf("download DMG: %w", err)
+	}
+
+	stat, _ := os.Stat(dmgPath)
+	if stat == nil || stat.Size() == 0 {
+		return fmt.Errorf("downloaded DMG is empty or missing")
+	}
+	u.logger.Printf("[Update] DMG downloaded: %d bytes", stat.Size())
+
+	u.emitProgress("mounting", 60, "Mounting DMG...")
+
+	mountOutput, err := exec.Command("hdiutil", "attach", "-nobrowse", "-readonly", "-quiet", dmgPath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mount DMG: %w (%s)", err, string(mountOutput))
+	}
+
+	for _, line := range strings.Split(string(mountOutput), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "/dev/") {
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				mountPoint = parts[len(parts)-1]
+			}
+		}
+	}
+	if mountPoint == "" {
+		mountPoint = "/Volumes/DFCleaner"
+	}
+	u.logger.Printf("[Update] DMG mounted at: %s", mountPoint)
+
+	u.emitProgress("replacing", 80, "Replacing...")
+
+	entries, _ := os.ReadDir(mountPoint)
+	newAppPath := ""
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".app") && e.IsDir() {
+			newAppPath = filepath.Join(mountPoint, e.Name())
+			break
+		}
+	}
+	if newAppPath == "" {
+		return fmt.Errorf("no .app bundle found in DMG")
+	}
+
+	if err := u.replaceAppBundle(selfPath, newAppPath); err != nil {
+		return fmt.Errorf("replace app: %w", err)
+	}
+
+	u.emitProgress("restarting", 100, "Restarting...")
+	wailsrt.EventsEmit(u.ctx, "update:complete")
+	time.Sleep(500 * time.Millisecond)
+
 	return u.restart(selfPath)
 }
 
@@ -227,17 +384,39 @@ func (u *Updater) findPlatformAsset(assets []struct {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
+	// Windows: prefer NSIS installer
+	if goos == "windows" {
+		for _, a := range assets {
+			if strings.Contains(a.Name, "-installer.") {
+				u.logger.Printf("[Update] matched installer asset: %s", a.Name)
+				return a.URL
+			}
+		}
+	}
+
+	// macOS: prefer DMG
+	if goos == "darwin" {
+		for _, a := range assets {
+			if strings.HasSuffix(a.Name, ".dmg") {
+				u.logger.Printf("[Update] matched DMG asset: %s", a.Name)
+				return a.URL
+			}
+		}
+	}
+
+	// Fallback: portable package
 	suffix := fmt.Sprintf("-%s-%s-portable.", goos, goarch)
 	for _, a := range assets {
 		if strings.Contains(a.Name, suffix) {
-			u.logger.Printf("[Update] matched platform asset: %s", a.Name)
+			u.logger.Printf("[Update] matched portable asset: %s", a.Name)
 			return a.URL
 		}
 	}
 
+	// Last resort: any asset matching the OS
 	for _, a := range assets {
 		if strings.Contains(a.Name, goos) {
-			u.logger.Printf("[Update] fallback platform asset: %s", a.Name)
+			u.logger.Printf("[Update] fallback asset: %s", a.Name)
 			return a.URL
 		}
 	}
