@@ -39,12 +39,17 @@ function buildTree(items: CleanableItem[]): TreeNode {
       node = node.children.get(seg)!
     }
     const leaf = parts[parts.length - 1]
-    if (item.isDir) {
-      node.items.push(item)
+    if (!node.children.has(leaf)) {
+      node.children.set(leaf, {
+        name: item.name || leaf,
+        path: item.path,
+        size: item.size,
+        children: new Map(),
+        items: [item],
+      })
     } else {
-      if (!node.children.has(leaf)) {
-        node.children.set(leaf, { name: leaf, path: item.path, size: item.size, children: new Map(), items: [item] })
-      }
+      const child = node.children.get(leaf)!
+      child.items.push(item)
     }
   }
   function calcSize(n: TreeNode): number {
