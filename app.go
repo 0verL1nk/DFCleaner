@@ -109,6 +109,7 @@ func (a *App) startup(ctx context.Context) {
 	a.logger.Println("startup complete")
 
 	go a.startTray()
+	go a.autoCheckUpdate()
 }
 
 // migrateFromStore copies settings from SQLite to TOML on first run with new config.
@@ -380,4 +381,22 @@ func (a *App) CheckForUpdate() (*updater.UpdateInfo, error) {
 
 func (a *App) PerformUpdate(info updater.UpdateInfo) error {
 	return a.updater.PerformUpdate(&info)
+}
+
+func (a *App) autoCheckUpdate() {
+	info, err := a.updater.CheckForUpdate(Version)
+	if err != nil {
+		a.logger.Printf("[AutoUpdate] check failed: %v", err)
+		return
+	}
+	if info.HasUpdate {
+		a.logger.Printf("[AutoUpdate] new version available: %s", info.LatestVer)
+		wailsrt.EventsEmit(a.ctx, "update:available", map[string]any{
+			"hasUpdate":   true,
+			"latestVer":  info.LatestVer,
+			"downloadUrl": info.DownloadURL,
+		})
+	} else {
+		a.logger.Printf("[AutoUpdate] up to date")
+	}
 }

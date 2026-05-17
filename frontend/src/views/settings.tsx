@@ -208,10 +208,15 @@ function UpdateChecker() {
   const [updateProgress, setUpdateProgress] = useState<{ phase: string; progress: number; message: string } | null>(null)
 
   useEffect(() => {
-    const off = EventsOn('update:progress', (data: any) => {
+    const offProgress = EventsOn('update:progress', (data: any) => {
       setUpdateProgress({ phase: data.phase, progress: data.progress, message: data.message })
     })
-    return () => { off() }
+    const offAvailable = EventsOn('update:available', (data: any) => {
+      if (data.hasUpdate) {
+        setUpdateInfo({ hasUpdate: true, latestVer: data.latestVer, downloadUrl: data.downloadUrl })
+      }
+    })
+    return () => { offProgress(); offAvailable() }
   }, [])
 
   async function handleCheck() {
