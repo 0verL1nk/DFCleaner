@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatBytes } from '@/components/treemap/treemap-utils'
+import { formatBytes } from '@/lib/format'
 
 describe('formatBytes', () => {
   it('formats zero bytes', () => {
